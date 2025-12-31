@@ -1,4 +1,37 @@
 "use client"
+import { useEffect, useState } from "react"
+// ... tvoji ostali importi
+
+export default function LegacyPiPage() {
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    // 1. Učitaj Pi SDK skriptu dinamički (ili je stavi u layout.tsx)
+    const script = document.createElement("script")
+    script.src = "https://sdk.minepi.com/pi-sdk.js"
+    script.async = true
+    document.body.appendChild(script)
+
+    script.onload = () => {
+      // 2. Inicijalizacija
+      const Pi = (window as any).Pi
+      Pi.init({ version: "2.0", sandbox: true }) // STAVI sandbox: false KAD IDEŠ LIVE!
+
+      // 3. Autentifikacija (Dohvati tko je korisnik)
+      Pi.authenticate(['username', 'payments'], onIncompletePaymentFound).then(function(auth: any) {
+        console.log("User authenticated:", auth)
+        setUser(auth.user)
+      }).catch(function(error: any) {
+        console.error(error)
+      })
+    }
+  }, [])
+
+  function onIncompletePaymentFound(payment: any) {
+    // Ovdje rješavaš nedovršena plaćanja (obavezno za Pi Network)
+    console.log("Nepotvrđeno plaćanje:", payment)
+  }
+}"use client"
 
 import type React from "react"
 
