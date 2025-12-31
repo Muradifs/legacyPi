@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { piLegacyVault } from "@/lib/pi-legacy-vault"
-import type { ConsensusDecision } from "@/lib/pi-legacy-vault"
+import { piLegacyVault } from "@/lib/temp-vault"
+import type { ConsensusDecision } from "@/lib/temp-vault"
 
 export async function POST(request: Request) {
   try {
