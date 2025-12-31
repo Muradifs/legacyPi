@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { piLegacyVault } from "@/lib/temp-vault"
+import { piLegacyVault } from "@/lib/pi-legacy-vault"
 
 export async function POST(request: NextRequest) {
   try {
