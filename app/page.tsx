@@ -1,44 +1,11 @@
 "use client"
-import { useEffect, useState } from "react"
-// ... tvoji ostali importi
-
-export default function LegacyPiPage() {
-  const [user, setUser] = useState<any>(null)
-
-  useEffect(() => {
-    // 1. Učitaj Pi SDK skriptu dinamički (ili je stavi u layout.tsx)
-    const script = document.createElement("script")
-    script.src = "https://sdk.minepi.com/pi-sdk.js"
-    script.async = true
-    document.body.appendChild(script)
-
-    script.onload = () => {
-      // 2. Inicijalizacija
-      const Pi = (window as any).Pi
-      Pi.init({ version: "2.0", sandbox: true }) // STAVI sandbox: false KAD IDEŠ LIVE!
-
-      // 3. Autentifikacija (Dohvati tko je korisnik)
-      Pi.authenticate(['username', 'payments'], onIncompletePaymentFound).then(function(auth: any) {
-        console.log("User authenticated:", auth)
-        setUser(auth.user)
-      }).catch(function(error: any) {
-        console.error(error)
-      })
-    }
-  }, [])
-
-  function onIncompletePaymentFound(payment: any) {
-    // Ovdje rješavaš nedovršena plaćanja (obavezno za Pi Network)
-    console.log("Nepotvrđeno plaćanje:", payment)
-  }
-}"use client"
 
 import type React from "react"
-
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, Users, Shield, TrendingUp, ChevronRight } from "lucide-react"
+import { LegacyPiLogo } from "@/components/legacy-pi-logo"
 
 export default function LegacyPiPage() {
   const [impactData, setImpactData] = useState({
@@ -69,13 +36,12 @@ export default function LegacyPiPage() {
           setImpactData(result.data)
         }
       } catch (error) {
-        console.error("[v0] Failed to fetch impact data:", error)
+        console.error("Failed to fetch impact data:", error)
       }
     }
 
     fetchImpactData()
 
-    // Refresh impact data every 30 seconds
     const impactInterval = setInterval(fetchImpactData, 30000)
 
     return () => clearInterval(impactInterval)
@@ -137,7 +103,6 @@ export default function LegacyPiPage() {
     setShowGoldenFlash(true)
 
     try {
-      // Call donation API
       const response = await fetch("/api/donate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,14 +116,13 @@ export default function LegacyPiPage() {
       const result = await response.json()
 
       if (result.status === "Success") {
-        console.log("[v0] Donation successful:", result)
         setImpactData((prev) => ({
           ...prev,
           totalLocked: prev.totalLocked + 10,
         }))
       }
     } catch (error) {
-      console.error("[v0] Donation error:", error)
+      console.error("Donation error:", error)
     }
 
     setTimeout(() => {
@@ -209,13 +173,10 @@ export default function LegacyPiPage() {
       </div>
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        {/* Header */}
         <header className="px-4 py-6">
           <div className="flex items-center justify-between max-w-md mx-auto">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                <Heart className="w-6 h-6 text-primary-foreground" />
-              </div>
+            <div className="flex items-center gap-3">
+              <LegacyPiLogo className="w-12 h-12" />
               <div>
                 <h1 className="text-xl font-bold text-foreground">LegacyPi</h1>
                 <p className="text-xs text-muted-foreground">Humanitarian Fund</p>
@@ -227,20 +188,16 @@ export default function LegacyPiPage() {
           </div>
         </header>
 
-        {/* Hero Section - Breathing Heart Treasury */}
         <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
           <div className="max-w-md w-full space-y-8">
-            {/* Breathing Circle */}
             <div className="flex items-center justify-center">
               <div className="relative">
-                {/* Outer glow rings */}
                 <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl scale-150 animate-breathe" />
                 <div
                   className="absolute inset-0 rounded-full bg-primary/10 blur-3xl scale-[2] animate-breathe"
                   style={{ animationDelay: "1s" }}
                 />
 
-                {/* Main breathing circle */}
                 <div className="relative w-64 h-64 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border-2 border-primary/50 flex items-center justify-center animate-breathe backdrop-blur-sm">
                   <div className="text-center">
                     <div className="flex items-center justify-center mb-2">
@@ -256,14 +213,12 @@ export default function LegacyPiPage() {
               </div>
             </div>
 
-            {/* Humanitarian Message */}
             <div className="text-center space-y-2">
               <p className="text-2xl font-semibold text-foreground">Potential for Help:</p>
               <p className="text-3xl font-bold text-primary">Immense</p>
               <p className="text-sm text-muted-foreground italic mt-2">{impactData.message}</p>
             </div>
 
-            {/* Feature Cards */}
             <div className="grid grid-cols-2 gap-3">
               <Card className="p-4 bg-card/50 backdrop-blur-sm border-border/50">
                 <div className="flex flex-col items-center text-center space-y-2">
@@ -291,7 +246,6 @@ export default function LegacyPiPage() {
             </div>
 
             <div className="space-y-3">
-              {/* Slide to Pledge */}
               <div
                 ref={sliderRef}
                 className="relative h-16 bg-secondary/30 rounded-full overflow-hidden border-2 border-primary/30 cursor-pointer"
@@ -303,17 +257,14 @@ export default function LegacyPiPage() {
                 onMouseUp={handleTouchEnd}
                 onMouseLeave={handleTouchEnd}
               >
-                {/* Progress background */}
                 <div className="absolute inset-0 bg-primary/20 transition-all" style={{ width: `${slidePosition}%` }} />
 
-                {/* Text */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <span className="text-lg font-semibold text-foreground">
                     {slidePosition < 20 ? "Slide to Pledge" : slidePosition < 95 ? "Keep Going..." : "Complete!"}
                   </span>
                 </div>
 
-                {/* Slider button */}
                 <div
                   className="absolute top-2 left-2 w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg transition-all"
                   style={{
@@ -334,7 +285,6 @@ export default function LegacyPiPage() {
           </div>
         </main>
 
-        {/* Countdown Footer */}
         <footer className="px-4 py-6 border-t border-border/30">
           <div className="max-w-md mx-auto">
             <div className="text-center space-y-3">
