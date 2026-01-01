@@ -4,7 +4,7 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp } from "lucide-react"
+import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map } from "lucide-react"
 
 // Tvoja javna adresa trezora
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
@@ -25,6 +25,23 @@ const LegacyPiLogo = ({ className }: { className?: string }) => (
     <path d="M50 55C50 55 40 65 40 80H60C60 65 50 55 50 55Z" fill="#FBBF24" fillOpacity="0.3" />
   </svg>
 )
+
+// --- DEFINICIJA BEDŽEVA ---
+const BADGE_TIERS = [
+  { id: 1, name: "Bronze Guardian", threshold: 1, color: "text-orange-400", bg: "bg-orange-400/20", border: "border-orange-400/50" },
+  { id: 2, name: "Silver Keeper", threshold: 100, color: "text-gray-300", bg: "bg-gray-300/20", border: "border-gray-300/50" },
+  { id: 3, name: "Gold Visionary", threshold: 1000, color: "text-yellow-400", bg: "bg-yellow-400/20", border: "border-yellow-400/50" },
+  { id: 4, name: "Diamond Legacy", threshold: 10000, color: "text-cyan-400", bg: "bg-cyan-400/20", border: "border-cyan-400/50" }
+];
+
+// --- DEFINICIJA ROADMAP-a ---
+const ROADMAP_STEPS = [
+  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin. Smart Contract Deployment.", status: "current" },
+  { year: "2026", title: "First Transparency Audit", description: "Public review of the Vault holdings and blockchain verification report.", status: "upcoming" },
+  { year: "2028", title: "Governance Test Vote", description: "Trial run of the DAO voting system to prepare for the final consensus.", status: "upcoming" },
+  { year: "2029", title: "Final Lock-in Phase", description: "Vault sealed for final accumulation. No new large withdrawals logic updates.", status: "upcoming" },
+  { year: "2030", title: "THE UNLOCK", description: "Consensus Day (Jan 1). Funds released to voted causes and liquidity pools.", status: "locked" }
+];
 
 // --- GENERIRANJE LAŽNIH PODATAKA ZA LEADERBOARD ---
 const generateMockDonors = () => {
@@ -78,6 +95,8 @@ const generateMockProposals = () => [
 
 export default function LegacyPiPage() {
   const [user, setUser] = useState<any>(null)
+  const [userStats, setUserStats] = useState({ totalDonated: 0, donations: [] as any[] }) // Novo stanje za statistiku korisnika
+  
   const [impactData, setImpactData] = useState({
     totalLocked: 125847.32,
     donorsCount: 8432,
@@ -91,15 +110,17 @@ export default function LegacyPiPage() {
   
   // --- STANJA ZA MODALE ---
   const [showLeaderboard, setShowLeaderboard] = useState(false)
-  const [showProposals, setShowProposals] = useState(false) // Novo stanje za prijedloge
+  const [showProposals, setShowProposals] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
+  const [showRoadmap, setShowRoadmap] = useState(false) // Novo stanje za Roadmap
   
   const [donorsList, setDonorsList] = useState<any[]>([])
-  const [proposalsList, setProposalsList] = useState<any[]>([]) // Lista prijedloga
+  const [proposalsList, setProposalsList] = useState<any[]>([])
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Inicijaliziraj lažne podatke
+    console.log("LegacyPi v1.6 loaded"); // Debug poruka
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
@@ -125,6 +146,17 @@ export default function LegacyPiPage() {
       const scopes = ['username', 'payments']
       const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound)
       setUser(authResult.user)
+      
+      // Simulacija dohvaćanja podataka o korisniku nakon spajanja
+      // U stvarnosti ovo dolazi s backenda
+      setUserStats({
+        totalDonated: 125, // Simuliramo da je korisnik već donirao nešto
+        donations: [
+          { date: "2024-12-20", amount: 100, tx: "G...7A" },
+          { date: "2024-11-15", amount: 25, tx: "G...9B" }
+        ]
+      })
+
     } catch (err) {
       console.error("Authentication failed", err)
       alert("Povezivanje nije uspjelo.")
@@ -180,10 +212,16 @@ export default function LegacyPiPage() {
   const completeUiSuccess = () => {
     setPaymentStatus("success")
     setTimeout(() => {
+      // Ažuriraj globalnu statistiku
       setImpactData(prev => ({
         ...prev,
         totalLocked: prev.totalLocked + 1,
         donorsCount: prev.donorsCount + 1
+      }))
+      // Ažuriraj osobnu statistiku
+      setUserStats(prev => ({
+        totalDonated: prev.totalDonated + 1,
+        donations: [{ date: new Date().toISOString().split('T')[0], amount: 1, tx: "PENDING" }, ...prev.donations]
       }))
     }, 500)
     setTimeout(() => {
@@ -192,7 +230,6 @@ export default function LegacyPiPage() {
     }, 4000)
   }
 
-  // Funkcija za glasanje (Simulacija)
   const handleVote = (id: number) => {
     setProposalsList(prev => prev.map(p => {
       if (p.id === id) {
@@ -263,7 +300,7 @@ export default function LegacyPiPage() {
   return (
     <div className="min-h-screen bg-[#1a0b2e] relative overflow-hidden text-white font-sans flex flex-col">
       
-      {/* --- LEADERBOARD MODAL (OVERLAY) --- */}
+      {/* --- LEADERBOARD MODAL --- */}
       {showLeaderboard && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
@@ -298,7 +335,7 @@ export default function LegacyPiPage() {
         </div>
       )}
 
-      {/* --- COMMUNITY PROPOSALS MODAL (NOVO) --- */}
+      {/* --- PROPOSALS MODAL --- */}
       {showProposals && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
@@ -311,12 +348,7 @@ export default function LegacyPiPage() {
                 <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
-            
-            <div className="p-4 bg-yellow-500/5 text-xs text-center text-yellow-500/80 border-b border-yellow-500/10">
-              Proposals for 2030 Fund Distribution. 
-              <br/>Vote for where the Pi should go.
-            </div>
-
+            <div className="p-4 bg-yellow-500/5 text-xs text-center text-yellow-500/80 border-b border-yellow-500/10">Proposals for 2030 Fund Distribution.<br/>Vote for where the Pi should go.</div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
               {proposalsList.map((proposal) => (
                 <div key={proposal.id} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-yellow-500/30 transition-colors">
@@ -327,10 +359,8 @@ export default function LegacyPiPage() {
                       {proposal.votes.toLocaleString()}
                     </div>
                   </div>
-                  
                   <h3 className="text-lg font-bold text-white mb-1">{proposal.title}</h3>
                   <p className="text-sm text-gray-400 mb-3">{proposal.description}</p>
-                  
                   <div className="grid grid-cols-2 gap-2 text-xs mb-4">
                     <div className="bg-black/30 p-2 rounded-lg">
                       <div className="text-gray-500">Recipient:</div>
@@ -341,15 +371,155 @@ export default function LegacyPiPage() {
                       <div className="text-white font-medium">{proposal.amount}</div>
                     </div>
                   </div>
-
-                  <Button 
-                    onClick={() => handleVote(proposal.id)}
-                    className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/50"
-                  >
-                    Vote for this Proposal
-                  </Button>
+                  <Button onClick={() => handleVote(proposal.id)} className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/50">Vote for this Proposal</Button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- ROADMAP MODAL (NOVO) --- */}
+      {showRoadmap && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
+            <div className="p-6 border-b border-yellow-500/20 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Map className="w-6 h-6 text-yellow-500" />
+                <h2 className="text-xl font-bold text-white">Timeline 2030</h2>
+              </div>
+              <button onClick={() => setShowRoadmap(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+              {ROADMAP_STEPS.map((step, index) => (
+                <div key={index} className="flex gap-4 relative">
+                  {/* Timeline Line */}
+                  {index !== ROADMAP_STEPS.length - 1 && (
+                    <div className="absolute left-[19px] top-10 bottom-[-32px] w-[2px] bg-white/10"></div>
+                  )}
+                  
+                  {/* Status Indicator */}
+                  <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 z-10 ${
+                    step.status === "current" ? "bg-yellow-500 border-yellow-500 animate-pulse text-black font-bold" :
+                    step.status === "locked" ? "bg-red-500/10 border-red-500/50 text-red-500" :
+                    "bg-white/5 border-white/20 text-gray-500"
+                  }`}>
+                    {step.status === "locked" ? <Lock className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current"></div>}
+                  </div>
+
+                  {/* Content */}
+                  <div className={`flex-1 pt-1 ${step.status === "current" ? "opacity-100" : "opacity-70"}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-sm font-bold px-2 py-0.5 rounded ${
+                        step.status === "current" ? "bg-yellow-500 text-black" : "bg-white/10 text-gray-400"
+                      }`}>
+                        {step.year}
+                      </span>
+                      {step.status === "current" && <span className="text-[10px] text-yellow-500 uppercase tracking-widest animate-pulse">In Progress</span>}
+                    </div>
+                    <h3 className={`text-lg font-bold ${step.status === "current" ? "text-white" : "text-gray-300"}`}>{step.title}</h3>
+                    <p className="text-sm text-gray-400 mt-1">{step.description}</p>
+                  </div>
+                </div>
+              ))}
+              
+              <div className="text-center pt-8 pb-4">
+                <p className="text-xs text-gray-500 italic">"Patience is the key to building a legacy."</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- USER PROFILE & BADGES MODAL --- */}
+      {showProfile && user && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-[#2E0A36] w-full max-w-lg h-[85vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
+            {/* Profile Header */}
+            <div className="p-6 border-b border-yellow-500/20 flex items-center justify-between bg-black/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/50">
+                  <Users className="w-6 h-6 text-yellow-500" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">My Legacy</h2>
+                  <p className="text-xs text-gray-400">@{user.username}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowProfile(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+              
+              {/* Total Donated Card */}
+              <div className="bg-gradient-to-r from-yellow-500/20 to-purple-500/20 rounded-xl p-6 text-center border border-yellow-500/30 relative overflow-hidden">
+                <div className="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
+                <p className="text-sm text-gray-300 uppercase tracking-widest mb-1 relative z-10">Total Locked</p>
+                <div className="text-4xl font-bold text-white relative z-10">{userStats.totalDonated} Pi</div>
+                <p className="text-xs text-yellow-500/80 mt-2 relative z-10">Thank you for your trust.</p>
+              </div>
+
+              {/* Badges Section */}
+              <div>
+                <h3 className="text-sm text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Medal className="w-4 h-4" /> Earned Badges
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {BADGE_TIERS.map((badge) => {
+                    const isUnlocked = userStats.totalDonated >= badge.threshold;
+                    return (
+                      <div 
+                        key={badge.id}
+                        className={`p-3 rounded-xl border flex flex-col items-center text-center transition-all ${
+                          isUnlocked 
+                            ? `${badge.bg} ${badge.border}` 
+                            : "bg-black/20 border-white/5 opacity-50 grayscale"
+                        }`}
+                      >
+                        <div className={`mb-2 ${isUnlocked ? badge.color : "text-gray-500"}`}>
+                          {isUnlocked ? <Star className="w-6 h-6 fill-current" /> : <Lock className="w-6 h-6" />}
+                        </div>
+                        <div className={`font-bold text-sm ${isUnlocked ? "text-white" : "text-gray-500"}`}>{badge.name}</div>
+                        <div className="text-[10px] text-gray-400 mt-1">{badge.threshold}+ Pi</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Donation History */}
+              <div>
+                <h3 className="text-sm text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <History className="w-4 h-4" /> Pledge History
+                </h3>
+                <div className="space-y-2">
+                  {userStats.donations.length > 0 ? userStats.donations.map((tx, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                      <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                           <Check className="w-4 h-4 text-green-500" />
+                         </div>
+                         <div>
+                           <div className="text-sm font-medium text-white">Donation</div>
+                           <div className="text-[10px] text-gray-500">{tx.date}</div>
+                         </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-white">{tx.amount} Pi</div>
+                        <div className="text-[10px] text-gray-600 font-mono">TX: {tx.tx}</div>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-center py-4 text-gray-500 text-sm italic">No donations yet. Be the first!</div>
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -387,15 +557,15 @@ export default function LegacyPiPage() {
             </div>
             
             <Button 
-              onClick={connectWallet}
+              onClick={() => user ? setShowProfile(true) : connectWallet()}
               variant="outline" 
               size="sm" 
-              className={`text-xs border-yellow-500/30 rounded-full px-4 transition-all duration-300 ${user ? 'bg-yellow-500/20 text-yellow-400' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}
+              className={`text-xs border-yellow-500/30 rounded-full px-4 transition-all duration-300 ${user ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/60' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}
             >
               {user ? (
                 <span className="flex items-center gap-2">
-                  <Wallet className="w-3 h-3" />
-                  {user.username}
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  @{user.username}
                 </span>
               ) : (
                 "Connect Wallet"
@@ -445,18 +615,25 @@ export default function LegacyPiPage() {
               </Card>
             </div>
 
-            {/* --- ACTION BUTTONS (Leaderboard & Proposals) --- */}
+            {/* --- ACTION BUTTONS --- */}
             <div className="grid gap-3">
-              <Button 
-                onClick={() => setShowLeaderboard(true)}
-                className="w-full bg-yellow-500/5 border border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500 h-12 rounded-xl flex items-center justify-between px-6 group"
-              >
-                <div className="flex items-center gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  onClick={() => setShowLeaderboard(true)}
+                  className="bg-yellow-500/5 border border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500 h-12 rounded-xl flex items-center justify-center gap-2 group"
+                >
                   <Trophy className="w-5 h-5" />
-                  <span className="font-semibold">Hall of Fame</span>
-                </div>
-                <ChevronRight className="w-4 h-4 opacity-50 group-hover:translate-x-1 transition-transform" />
-              </Button>
+                  <span className="font-semibold text-xs">Hall of Fame</span>
+                </Button>
+
+                <Button 
+                  onClick={() => setShowRoadmap(true)}
+                  className="bg-blue-500/5 border border-blue-500/30 hover:bg-blue-500/10 text-blue-400 h-12 rounded-xl flex items-center justify-center gap-2 group"
+                >
+                  <Map className="w-5 h-5" />
+                  <span className="font-semibold text-xs">Timeline 2030</span>
+                </Button>
+              </div>
 
               <Button 
                 onClick={() => setShowProposals(true)}
@@ -515,7 +692,7 @@ export default function LegacyPiPage() {
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto">
           <div className="text-center space-y-4">
-            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030 • v1.2</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030 • v1.6</p>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90">
               <div className="text-center">
                 <div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div>
