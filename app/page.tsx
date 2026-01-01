@@ -4,7 +4,7 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X } from "lucide-react"
+import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp } from "lucide-react"
 
 // Tvoja javna adresa trezora
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
@@ -26,7 +26,7 @@ const LegacyPiLogo = ({ className }: { className?: string }) => (
   </svg>
 )
 
-// --- GENERIRANJE LAŽNIH PODATAKA ZA LEADERBOARD (Ovo će kasnije zamijeniti prava baza) ---
+// --- GENERIRANJE LAŽNIH PODATAKA ZA LEADERBOARD ---
 const generateMockDonors = () => {
   return Array.from({ length: 50 }, (_, i) => ({
     rank: i + 1,
@@ -35,6 +35,46 @@ const generateMockDonors = () => {
     amount: i === 0 ? 5000 : i === 1 ? 2500 : Math.floor(1000 - i * 15)
   }));
 };
+
+// --- GENERIRANJE LAŽNIH PRIJEDLOGA ZAJEDNICE (PROPOSALS) ---
+const generateMockProposals = () => [
+  {
+    id: 1,
+    title: "Global Pi Education Fund",
+    recipient: "Verified NGOs (Education)",
+    amount: "20% of Vault",
+    description: "Building schools in developing regions accepting Pi for tuition.",
+    votes: 1245,
+    category: "Education"
+  },
+  {
+    id: 2,
+    title: "Pi Network Liquidity Pool",
+    recipient: "Pi DEX (Automated)",
+    amount: "40% of Vault",
+    description: "Providing massive liquidity to stabilize Pi value on open markets in 2030.",
+    votes: 3892,
+    category: "Finance"
+  },
+  {
+    id: 3,
+    title: "Clean Water Initiative",
+    recipient: "Water.org Partnership",
+    amount: "10% of Vault",
+    description: "Funding water infrastructure projects. Payment milestones tracked on-chain.",
+    votes: 856,
+    category: "Humanitarian"
+  },
+  {
+    id: 4,
+    title: "Pioneer Startup Grants",
+    recipient: "Selected Pi Apps",
+    amount: "30% of Vault",
+    description: "Seed funding for the most innovative Pi apps built between 2025-2030.",
+    votes: 2100,
+    category: "Development"
+  }
+];
 
 export default function LegacyPiPage() {
   const [user, setUser] = useState<any>(null)
@@ -49,15 +89,19 @@ export default function LegacyPiPage() {
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle")
   const [copied, setCopied] = useState(false)
   
-  // --- NOVO STANJE ZA LEADERBOARD ---
+  // --- STANJA ZA MODALE ---
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [showProposals, setShowProposals] = useState(false) // Novo stanje za prijedloge
+  
   const [donorsList, setDonorsList] = useState<any[]>([])
+  const [proposalsList, setProposalsList] = useState<any[]>([]) // Lista prijedloga
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Inicijaliziraj lažne podatke kad se komponenta učita
+    // Inicijaliziraj lažne podatke
     setDonorsList(generateMockDonors())
+    setProposalsList(generateMockProposals())
 
     const initPi = async () => {
       try {
@@ -148,6 +192,16 @@ export default function LegacyPiPage() {
     }, 4000)
   }
 
+  // Funkcija za glasanje (Simulacija)
+  const handleVote = (id: number) => {
+    setProposalsList(prev => prev.map(p => {
+      if (p.id === id) {
+        return { ...p, votes: p.votes + 1 }
+      }
+      return p
+    }))
+  }
+
   const copyAddress = () => {
     navigator.clipboard.writeText(VAULT_ADDRESS)
     setCopied(true)
@@ -213,61 +267,89 @@ export default function LegacyPiPage() {
       {showLeaderboard && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
-            
-            {/* Header Modala */}
             <div className="p-6 border-b border-yellow-500/20 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Trophy className="w-6 h-6 text-yellow-500" />
                 <h2 className="text-xl font-bold text-white">Hall of Fame</h2>
               </div>
-              <button 
-                onClick={() => setShowLeaderboard(false)}
-                className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
-              >
+              <button onClick={() => setShowLeaderboard(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
                 <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
-
-            {/* Lista Donatora */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
               <div className="flex justify-between px-4 pb-2 text-[10px] text-gray-500 uppercase tracking-widest">
                 <span>Rank & User</span>
                 <span>Amount Locked</span>
               </div>
-              
               {donorsList.map((donor) => (
-                <div 
-                  key={donor.rank} 
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                    donor.rank === 1 ? "bg-yellow-500/10 border-yellow-500/50" :
-                    donor.rank === 2 ? "bg-gray-300/10 border-gray-300/50" :
-                    donor.rank === 3 ? "bg-orange-700/10 border-orange-700/50" :
-                    "bg-white/5 border-white/5 hover:bg-white/10"
-                  }`}
-                >
+                <div key={donor.rank} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${donor.rank === 1 ? "bg-yellow-500/10 border-yellow-500/50" : donor.rank === 2 ? "bg-gray-300/10 border-gray-300/50" : donor.rank === 3 ? "bg-orange-700/10 border-orange-700/50" : "bg-white/5 border-white/5 hover:bg-white/10"}`}>
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${
-                      donor.rank === 1 ? "bg-yellow-500 text-black" :
-                      donor.rank === 2 ? "bg-gray-300 text-black" :
-                      donor.rank === 3 ? "bg-orange-700 text-white" :
-                      "bg-white/10 text-gray-400"
-                    }`}>
-                      {donor.rank}
-                    </div>
+                    <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${donor.rank === 1 ? "bg-yellow-500 text-black" : donor.rank === 2 ? "bg-gray-300 text-black" : donor.rank === 3 ? "bg-orange-700 text-white" : "bg-white/10 text-gray-400"}`}>{donor.rank}</div>
                     <div>
                       <div className="font-semibold text-sm text-white">{donor.username}</div>
                       <div className="text-[10px] text-gray-500 font-mono">{donor.wallet}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-yellow-500">{donor.amount} Pi</div>
-                  </div>
+                  <div className="text-right"><div className="font-bold text-yellow-500">{donor.amount} Pi</div></div>
                 </div>
               ))}
-              
-              <div className="text-center py-4 text-xs text-gray-500">
-                Showing top 50 guardians (simulated)
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- COMMUNITY PROPOSALS MODAL (NOVO) --- */}
+      {showProposals && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
+            <div className="p-6 border-b border-yellow-500/20 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Lightbulb className="w-6 h-6 text-yellow-500" />
+                <h2 className="text-xl font-bold text-white">Community Visions</h2>
               </div>
+              <button onClick={() => setShowProposals(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="p-4 bg-yellow-500/5 text-xs text-center text-yellow-500/80 border-b border-yellow-500/10">
+              Proposals for 2030 Fund Distribution. 
+              <br/>Vote for where the Pi should go.
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+              {proposalsList.map((proposal) => (
+                <div key={proposal.id} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-yellow-500/30 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="px-2 py-1 rounded-md bg-white/10 text-[10px] text-gray-400 uppercase tracking-wider">{proposal.category}</span>
+                    <div className="flex items-center gap-1 text-yellow-500 font-bold text-sm">
+                      <ThumbsUp className="w-3 h-3" />
+                      {proposal.votes.toLocaleString()}
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-lg font-bold text-white mb-1">{proposal.title}</h3>
+                  <p className="text-sm text-gray-400 mb-3">{proposal.description}</p>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-4">
+                    <div className="bg-black/30 p-2 rounded-lg">
+                      <div className="text-gray-500">Recipient:</div>
+                      <div className="text-white font-medium">{proposal.recipient}</div>
+                    </div>
+                    <div className="bg-black/30 p-2 rounded-lg">
+                      <div className="text-gray-500">Requested:</div>
+                      <div className="text-white font-medium">{proposal.amount}</div>
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={() => handleVote(proposal.id)}
+                    className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/50"
+                  >
+                    Vote for this Proposal
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -323,10 +405,10 @@ export default function LegacyPiPage() {
         </header>
 
         <main className="flex-1 flex flex-col items-center justify-center px-4 py-2 w-full">
-          <div className="w-full space-y-8">
+          <div className="w-full space-y-6">
             
             {/* HERO */}
-            <div className="flex items-center justify-center py-4">
+            <div className="flex items-center justify-center py-2">
               <div className="relative group cursor-default">
                 <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-2xl scale-110 animate-pulse" />
                 <div className="relative w-64 h-64 rounded-full bg-gradient-to-b from-[#3a1c42] to-[#1a0b2e] border border-yellow-500/30 flex items-center justify-center shadow-2xl shadow-purple-900/50">
@@ -363,20 +445,33 @@ export default function LegacyPiPage() {
               </Card>
             </div>
 
-            {/* --- LEADERBOARD GUMB --- */}
-            <Button 
-              onClick={() => setShowLeaderboard(true)}
-              className="w-full bg-yellow-500/10 border border-yellow-500/50 hover:bg-yellow-500/20 text-yellow-500 h-12 rounded-xl flex items-center justify-between px-6 group"
-            >
-              <div className="flex items-center gap-3">
-                <Trophy className="w-5 h-5" />
-                <span className="font-semibold">Hall of Fame (Top 1000)</span>
-              </div>
-              <ChevronRight className="w-4 h-4 opacity-50 group-hover:translate-x-1 transition-transform" />
-            </Button>
+            {/* --- ACTION BUTTONS (Leaderboard & Proposals) --- */}
+            <div className="grid gap-3">
+              <Button 
+                onClick={() => setShowLeaderboard(true)}
+                className="w-full bg-yellow-500/5 border border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-500 h-12 rounded-xl flex items-center justify-between px-6 group"
+              >
+                <div className="flex items-center gap-3">
+                  <Trophy className="w-5 h-5" />
+                  <span className="font-semibold">Hall of Fame</span>
+                </div>
+                <ChevronRight className="w-4 h-4 opacity-50 group-hover:translate-x-1 transition-transform" />
+              </Button>
+
+              <Button 
+                onClick={() => setShowProposals(true)}
+                className="w-full bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 text-purple-300 h-12 rounded-xl flex items-center justify-between px-6 group"
+              >
+                <div className="flex items-center gap-3">
+                  <Lightbulb className="w-5 h-5" />
+                  <span className="font-semibold">Community Visions (Vote)</span>
+                </div>
+                <ChevronRight className="w-4 h-4 opacity-50 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </div>
 
             {/* SLIDER */}
-            <div className="space-y-4 pt-4 relative">
+            <div className="space-y-4 pt-2 relative">
               <div
                 ref={sliderRef}
                 className="relative h-16 bg-black/40 rounded-full overflow-hidden border border-white/10 select-none touch-none cursor-pointer shadow-inner"
@@ -395,7 +490,6 @@ export default function LegacyPiPage() {
 
                 <div
                   className="absolute top-1/2 -translate-y-1/2 h-14 w-14 bg-yellow-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(234,179,8,0.5)] z-10 transition-transform duration-75 ease-out active:scale-95"
-                  // OVDJE JE PROMJENA: Preciznija matematika za pozicioniranje gumba
                   style={{ left: `${slidePosition}%`, transform: `translate(-${slidePosition}%, -50%)` }}
                 >
                   <ChevronRight className="w-8 h-8 text-black ml-1" />
@@ -404,7 +498,7 @@ export default function LegacyPiPage() {
             </div>
             
             {/* VAULT ADDRESS DISPLAY */}
-            <div className="mt-8 pt-6 border-t border-white/5 text-center">
+            <div className="mt-4 pt-6 border-t border-white/5 text-center">
                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Vault Contract Address (Verify)</p>
                <div className="flex items-center justify-center gap-2 bg-black/30 p-2 rounded-lg border border-white/5">
                  <code className="text-[10px] text-yellow-500/70 font-mono truncate max-w-[200px]">
@@ -421,7 +515,7 @@ export default function LegacyPiPage() {
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto">
           <div className="text-center space-y-4">
-            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030 • v1.1</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030 • v1.2</p>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90">
               <div className="text-center">
                 <div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div>
