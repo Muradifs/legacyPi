@@ -395,7 +395,8 @@ export default function LegacyPiPage() {
 
                 <div
                   className="absolute top-1/2 -translate-y-1/2 h-14 w-14 bg-yellow-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(234,179,8,0.5)] z-10 transition-transform duration-75 ease-out active:scale-95"
-                  style={{ left: `${slidePosition}%`, transform: `translate(${slidePosition > 90 ? '-90%' : '-10%'}, -50%)` }}
+                  // OVDJE JE PROMJENA: Preciznija matematika za pozicioniranje gumba
+                  style={{ left: `${slidePosition}%`, transform: `translate(-${slidePosition}%, -50%)` }}
                 >
                   <ChevronRight className="w-8 h-8 text-black ml-1" />
                 </div>
