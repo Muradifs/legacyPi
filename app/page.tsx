@@ -4,7 +4,7 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map } from "lucide-react"
+import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles } from "lucide-react"
 
 // Tvoja javna adresa trezora
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
@@ -95,7 +95,7 @@ const generateMockProposals = () => [
 
 export default function LegacyPiPage() {
   const [user, setUser] = useState<any>(null)
-  const [userStats, setUserStats] = useState({ totalDonated: 0, donations: [] as any[] }) // Novo stanje za statistiku korisnika
+  const [userStats, setUserStats] = useState({ totalDonated: 0, donations: [] as any[] })
   
   const [impactData, setImpactData] = useState({
     totalLocked: 125847.32,
@@ -112,7 +112,8 @@ export default function LegacyPiPage() {
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [showProposals, setShowProposals] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const [showRoadmap, setShowRoadmap] = useState(false) // Novo stanje za Roadmap
+  const [showRoadmap, setShowRoadmap] = useState(false)
+  const [showShare, setShowShare] = useState(false) // Novo stanje za Share
   
   const [donorsList, setDonorsList] = useState<any[]>([])
   const [proposalsList, setProposalsList] = useState<any[]>([])
@@ -120,7 +121,7 @@ export default function LegacyPiPage() {
   const sliderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    console.log("LegacyPi v1.6 loaded"); // Debug poruka
+    console.log("LegacyPi v1.7 loaded"); // Verzija 1.7
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
@@ -147,10 +148,8 @@ export default function LegacyPiPage() {
       const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound)
       setUser(authResult.user)
       
-      // Simulacija dohvaćanja podataka o korisniku nakon spajanja
-      // U stvarnosti ovo dolazi s backenda
       setUserStats({
-        totalDonated: 125, // Simuliramo da je korisnik već donirao nešto
+        totalDonated: 125,
         donations: [
           { date: "2024-12-20", amount: 100, tx: "G...7A" },
           { date: "2024-11-15", amount: 25, tx: "G...9B" }
@@ -212,13 +211,11 @@ export default function LegacyPiPage() {
   const completeUiSuccess = () => {
     setPaymentStatus("success")
     setTimeout(() => {
-      // Ažuriraj globalnu statistiku
       setImpactData(prev => ({
         ...prev,
         totalLocked: prev.totalLocked + 1,
         donorsCount: prev.donorsCount + 1
       }))
-      // Ažuriraj osobnu statistiku
       setUserStats(prev => ({
         totalDonated: prev.totalDonated + 1,
         donations: [{ date: new Date().toISOString().split('T')[0], amount: 1, tx: "PENDING" }, ...prev.donations]
@@ -243,6 +240,12 @@ export default function LegacyPiPage() {
     navigator.clipboard.writeText(VAULT_ADDRESS)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const copyInvite = () => {
+    const inviteText = `I'm securing the future with LegacyPi! 🔐 Locked my Pi until 2030 for charity & growth. Join me: legacypi.app?ref=${user ? user.username : 'pioneer'}`;
+    navigator.clipboard.writeText(inviteText);
+    alert("Invite message copied to clipboard!");
   }
 
   // Countdown
@@ -379,7 +382,7 @@ export default function LegacyPiPage() {
         </div>
       )}
 
-      {/* --- ROADMAP MODAL (NOVO) --- */}
+      {/* --- ROADMAP MODAL --- */}
       {showRoadmap && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
@@ -429,6 +432,49 @@ export default function LegacyPiPage() {
               <div className="text-center pt-8 pb-4">
                 <p className="text-xs text-gray-500 italic">"Patience is the key to building a legacy."</p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- SHARE & INVITE MODAL (NOVO) --- */}
+      {showShare && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-[#2E0A36] w-full max-w-sm rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative text-center overflow-hidden">
+            <div className="p-6 bg-gradient-to-b from-yellow-500/10 to-transparent">
+              <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-500/50">
+                <Sparkles className="w-8 h-8 text-yellow-500 animate-pulse" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Invite Pioneers</h2>
+              <p className="text-sm text-gray-300">Share your vision. Build the legacy.</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-left">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Your Referral Code</p>
+                <div className="font-mono text-lg text-yellow-500 font-bold tracking-wider">
+                  {user ? `@${user.username}` : "CONNECT WALLET"}
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400">
+                Invite 5 friends to unlock the exclusive <span className="text-white font-bold">Ambassador Badge</span>.
+              </p>
+
+              <Button 
+                onClick={copyInvite}
+                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-12 rounded-xl flex items-center justify-center gap-2"
+              >
+                <Copy className="w-4 h-4" /> Copy Invite Link
+              </Button>
+              
+              <Button 
+                onClick={() => setShowShare(false)}
+                variant="ghost"
+                className="w-full text-gray-500 hover:text-white"
+              >
+                Close
+              </Button>
             </div>
           </div>
         </div>
@@ -556,21 +602,33 @@ export default function LegacyPiPage() {
               </div>
             </div>
             
-            <Button 
-              onClick={() => user ? setShowProfile(true) : connectWallet()}
-              variant="outline" 
-              size="sm" 
-              className={`text-xs border-yellow-500/30 rounded-full px-4 transition-all duration-300 ${user ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/60' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}
-            >
-              {user ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                  @{user.username}
-                </span>
-              ) : (
-                "Connect Wallet"
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* NEW SHARE BUTTON */}
+              <Button 
+                onClick={() => setShowShare(true)}
+                variant="outline" 
+                size="icon"
+                className="w-9 h-9 rounded-full bg-white/5 border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10"
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
+
+              <Button 
+                onClick={() => user ? setShowProfile(true) : connectWallet()}
+                variant="outline" 
+                size="sm" 
+                className={`text-xs border-yellow-500/30 rounded-full px-4 transition-all duration-300 ${user ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/60' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}
+              >
+                {user ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    @{user.username}
+                  </span>
+                ) : (
+                  "Connect Wallet"
+                )}
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -692,7 +750,7 @@ export default function LegacyPiPage() {
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto">
           <div className="text-center space-y-4">
-            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030 • v1.6</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030 • v1.7</p>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90">
               <div className="text-center">
                 <div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div>
