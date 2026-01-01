@@ -420,7 +420,7 @@ export default function LegacyPiPage() {
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto">
           <div className="text-center space-y-4">
-            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030 • v1.1</p>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90">
               <div className="text-center">
                 <div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div>
@@ -431,6 +431,17 @@ export default function LegacyPiPage() {
                 <div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div>
                 <div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div>
               </div>
+              <div className="text-xl font-thin opacity-30">:</div>
+              <div className="text-center">
+                <div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div>
+                <div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div>
+              </div>
+            </div>
+            
+            {/* --- LEGAL LINKS --- */}
+            <div className="mt-8 flex items-center justify-center gap-6 text-[10px] text-gray-500 uppercase tracking-widest pt-4 border-t border-white/5">
+              <a href="/terms-of-service" className="hover:text-yellow-500 transition-colors">Terms of Service</a>
+              <a href="/privacy-policy" className="hover:text-yellow-500 transition-colors">Privacy Policy</a>
             </div>
           </div>
         </footer>
