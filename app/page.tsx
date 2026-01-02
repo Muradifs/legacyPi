@@ -50,14 +50,15 @@ const ROADMAP_STEPS = [
 export default function LegacyPiPage() {
   const [user, setUser] = useState<any>(null)
   const [userStats, setUserStats] = useState({ totalDonated: 0, donations: [] as any[] })
-  const [impactData, setImpactData] = useState({ totalLocked: 125847.32, donorsCount: 8432, message: "Together we create a legacy." })
+  // Inicijalizacija na NULA
+  const [impactData, setImpactData] = useState({ totalLocked: 0, donorsCount: 0, message: "Together we create a legacy." })
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0 })
   const [slidePosition, setSlidePosition] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle")
   const [copied, setCopied] = useState(false)
   
-  // Stanja za modale (skriveni po defaultu za čisti izgled)
+  // Stanja za modale
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [showProposals, setShowProposals] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -70,19 +71,14 @@ export default function LegacyPiPage() {
   const [piSdkState, setPiSdkState] = useState<"loading" | "ready" | "failed" | "mock">("loading")
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- INIT & LOGIKA (Skrivena moć v2.0) ---
+  // --- INIT & LOGIKA ---
   useEffect(() => {
-    // Generiraj mock podatke
-    setDonorsList(Array.from({ length: 50 }, (_, i) => ({
-        rank: i + 1,
-        username: i === 0 ? "CryptoKing_Pi" : `Pioneer_${Math.floor(Math.random() * 9000) + 1000}`,
-        wallet: `G${Math.random().toString(36).substring(2, 6).toUpperCase()}...`,
-        amount: i === 0 ? 5000 : Math.floor(1000 - i * 15)
-    })));
+    // Postavljamo praznu listu donatora
+    setDonorsList([]);
     
+    // Postavljamo samo JEDAN primjer projekta
     setProposalsList([
-        { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "20% of Vault", description: "Building schools.", votes: 1245, category: "Education" },
-        { id: 2, title: "Pi Liquidity Pool", recipient: "Pi DEX", amount: "40% of Vault", description: "Stabilizing Pi value.", votes: 3892, category: "Finance" }
+        { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "100% of Vault", description: "Building schools in developing regions accepting Pi for tuition.", votes: 0, category: "Education" }
     ]);
 
     const initializePi = () => {
@@ -97,7 +93,7 @@ export default function LegacyPiPage() {
           setPiSdkState("ready"); 
         }
       } else {
-        // 2. Tihi Mock Mode (za PC/Testing) - bez upozorenja korisniku
+        // 2. Tihi Mock Mode
         console.log("LegacyPi: Mock Mode Active (Dev)");
         
         window.Pi = {
@@ -130,7 +126,6 @@ export default function LegacyPiPage() {
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
-    // Tiho pokušaj riješiti zaglavljena plaćanja
     try {
         fetch("/api/pi/approve", {
             method: "POST",
@@ -147,10 +142,10 @@ export default function LegacyPiPage() {
       const scopes = ['username', 'payments']; 
       const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound);
       setUser(authResult.user);
-      setUserStats({ totalDonated: 125, donations: [{ date: "2024-12-20", amount: 100, tx: "G...7A" }] });
+      // Resetiramo statistiku korisnika na nula kod spajanja
+      setUserStats({ totalDonated: 0, donations: [] });
     } catch (err: any) {
       console.error("Auth Error:", err);
-      // Samo ako je stvarna greška, pokaži alert, inače tiho
       if (piSdkState !== "mock") alert("Povezivanje nije uspjelo. Pokušajte ponovno.");
     }
   }
@@ -173,7 +168,6 @@ export default function LegacyPiPage() {
   
       const callbacks = {
         onReadyForServerApproval: async (paymentId: string) => {
-          // HIBRIDNI PRISTUP: Probaj backend, ako ne ide, simuliraj uspjeh.
           try {
             const res = await fetch("/api/pi/approve", {
                 method: "POST",
@@ -211,8 +205,29 @@ export default function LegacyPiPage() {
   const completeUiSuccess = () => {
     setPaymentStatus("success")
     setTimeout(() => {
-      setImpactData(prev => ({ ...prev, totalLocked: prev.totalLocked + 1, donorsCount: prev.donorsCount + 1 }))
-      setUserStats(prev => ({ totalDonated: prev.totalDonated + 1, donations: [{ date: "Just now", amount: 1, tx: "PENDING" }, ...prev.donations] }))
+      // Ažuriraj lokalno stanje nakon uspješne donacije
+      setImpactData(prev => ({ 
+          ...prev, 
+          totalLocked: prev.totalLocked + 1, 
+          donorsCount: prev.donorsCount + 1 
+      }));
+      setUserStats(prev => ({ 
+          totalDonated: prev.totalDonated + 1, 
+          donations: [{ date: "Just now", amount: 1, tx: "PENDING" }, ...prev.donations] 
+      }));
+      
+      // Dodaj korisnika u listu donatora (lokalno, za demo)
+      if (user) {
+        setDonorsList(prev => [
+            { 
+                rank: prev.length + 1, 
+                username: user.username, 
+                wallet: "PENDING...", 
+                amount: 1 
+            }, 
+            ...prev
+        ]);
+      }
     }, 500)
     setTimeout(() => {
       setPaymentStatus("idle"); setSlidePosition(0);
@@ -271,11 +286,23 @@ export default function LegacyPiPage() {
               <button onClick={() => setShowLeaderboard(false)} className="p-2"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {donorsList.map((donor) => (
-                <div key={donor.rank} className="flex justify-between p-3 border border-white/5 rounded">
-                  <span>#{donor.rank} {donor.username}</span> <span className="text-yellow-500">{donor.amount} Pi</span>
-                </div>
-              ))}
+              {donorsList.length === 0 ? (
+                  <div className="text-center text-gray-500 py-10 flex flex-col items-center">
+                      <Trophy className="w-12 h-12 mb-4 opacity-20" />
+                      <p>No guardians yet.</p>
+                      <p className="text-xs mt-2">Be the first to pledge!</p>
+                  </div>
+              ) : (
+                  donorsList.map((donor) => (
+                    <div key={donor.rank} className="flex justify-between p-3 border border-white/5 rounded bg-white/5">
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-yellow-500">#{donor.rank}</span>
+                        <span>{donor.username}</span> 
+                      </div>
+                      <span className="text-yellow-500 font-mono">{donor.amount} Pi</span>
+                    </div>
+                  ))
+              )}
             </div>
           </div>
         </div>
@@ -288,9 +315,18 @@ export default function LegacyPiPage() {
              <div className="space-y-4 overflow-y-auto h-full pb-10">
                 {proposalsList.map(p => (
                     <div key={p.id} className="border border-white/10 p-4 rounded bg-white/5">
-                        <h3 className="font-bold">{p.title}</h3>
-                        <p className="text-sm text-gray-400">{p.description}</p>
-                        <Button onClick={()=>handleVote(p.id)} className="w-full mt-2 bg-yellow-500/20 text-yellow-500">Vote ({p.votes})</Button>
+                        <h3 className="font-bold text-lg mb-1">{p.title}</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                             <span className="text-xs bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">{p.category}</span>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-4">{p.description}</p>
+                        <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
+                            <span>Recipient: {p.recipient}</span>
+                            <span>Amount: {p.amount}</span>
+                        </div>
+                        <Button onClick={()=>handleVote(p.id)} className="w-full mt-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/50">
+                            <ThumbsUp className="w-4 h-4 mr-2" /> Vote ({p.votes})
+                        </Button>
                     </div>
                 ))}
              </div>
@@ -304,9 +340,18 @@ export default function LegacyPiPage() {
              <div className="flex justify-between mb-4"><h2 className="text-xl font-bold">Timeline</h2><button onClick={()=>setShowRoadmap(false)}><X/></button></div>
              <div className="space-y-6 overflow-y-auto h-full pb-10">
                 {ROADMAP_STEPS.map((s,i) => (
-                    <div key={i} className="flex gap-4">
-                        <div className="text-yellow-500 font-bold">{s.year}</div>
-                        <div><div className="font-bold">{s.title}</div><div className="text-sm text-gray-400">{s.description}</div></div>
+                    <div key={i} className="flex gap-4 relative">
+                        <div className={`text-sm font-bold w-12 pt-1 ${s.status === 'current' ? 'text-yellow-500' : 'text-gray-500'}`}>{s.year}</div>
+                        
+                        <div className="flex flex-col items-center">
+                            <div className={`w-3 h-3 rounded-full z-10 ${s.status === 'current' ? 'bg-yellow-500 animate-pulse' : s.status === 'locked' ? 'bg-red-900' : 'bg-gray-700'}`}></div>
+                            {i !== ROADMAP_STEPS.length - 1 && <div className="w-0.5 h-full bg-white/10 absolute top-3"></div>}
+                        </div>
+
+                        <div className="flex-1 pb-6">
+                            <div className={`font-bold ${s.status === 'current' ? 'text-white' : 'text-gray-400'}`}>{s.title}</div>
+                            <div className="text-sm text-gray-500 mt-1">{s.description}</div>
+                        </div>
                     </div>
                 ))}
              </div>
