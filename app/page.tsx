@@ -50,7 +50,7 @@ const ROADMAP_STEPS = [
 export default function LegacyPiPage() {
   const [user, setUser] = useState<any>(null)
   const [userStats, setUserStats] = useState({ totalDonated: 0, donations: [] as any[] })
-  // Inicijalizacija na NULA
+  // START NA NULI
   const [impactData, setImpactData] = useState({ totalLocked: 0, donorsCount: 0, message: "Together we create a legacy." })
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0 })
   const [slidePosition, setSlidePosition] = useState(0)
@@ -58,7 +58,6 @@ export default function LegacyPiPage() {
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle")
   const [copied, setCopied] = useState(false)
   
-  // Stanja za modale
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [showProposals, setShowProposals] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -73,10 +72,10 @@ export default function LegacyPiPage() {
 
   // --- INIT & LOGIKA ---
   useEffect(() => {
-    // Postavljamo praznu listu donatora
+    // Prazna lista donatora
     setDonorsList([]);
     
-    // Postavljamo samo JEDAN primjer projekta
+    // Samo jedan projekt
     setProposalsList([
         { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "100% of Vault", description: "Building schools in developing regions accepting Pi for tuition.", votes: 0, category: "Education" }
     ]);
