@@ -79,35 +79,39 @@ export default function LegacyPiPage() {
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- 1. CONFIGURATION FOR TESTNET (NO MOCK) ---
+  // --- 1. CONFIGURATION FOR TESTNET (WITH RETRY) ---
   useEffect(() => {
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
-    const initializePi = () => {
+    let attempts = 0;
+    const maxAttempts = 20; // 10 seconds total wait time
+
+    // Funkcija koja provjerava postoji li Pi svakih 500ms
+    const checkPiInterval = setInterval(() => {
       if (typeof window !== 'undefined' && window.Pi) {
         try {
-          // sandbox: true = TESTNET
+          // Found Pi! Initialize.
           window.Pi.init({ version: "2.0", sandbox: true });
           setPiSdkState("ready");
           console.log("LegacyPi: Testnet SDK Initialized");
         } catch (e) {
           console.warn("LegacyPi: SDK Init Warning", e);
-          setPiSdkState("ready"); 
+          setPiSdkState("ready"); // Pretpostavljamo da je OK ako je već inicijaliziran
         }
+        clearInterval(checkPiInterval); // Stop checking
       } else {
-        // NEMA VIŠE MOCK MODE-A
-        console.warn("LegacyPi: Pi Browser not detected.");
-        setPiSdkState("failed");
+        attempts++;
+        if (attempts >= maxAttempts) {
+            // Give up after 10 seconds
+            console.warn("LegacyPi: Pi Browser not detected after retries.");
+            setPiSdkState("failed");
+            clearInterval(checkPiInterval);
+        }
       }
-    };
+    }, 500);
 
-    if (document.readyState === "complete") {
-      initializePi();
-    } else {
-      window.addEventListener("load", initializePi);
-      return () => window.removeEventListener("load", initializePi);
-    }
+    return () => clearInterval(checkPiInterval);
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
@@ -121,9 +125,12 @@ export default function LegacyPiPage() {
   };
 
   const connectWallet = async () => {
-    if (piSdkState === "loading") return;
+    if (piSdkState === "loading") {
+        alert("Sustav se još učitava... Pričekajte trenutak.");
+        return;
+    }
     if (piSdkState === "failed") {
-        alert("Pi Browser nije detektiran. Molimo otvorite aplikaciju unutar Pi Browsera.");
+        alert("Pi Browser nije detektiran. Jeste li sigurno u Pi Browseru? Probajte osvježiti stranicu.");
         return;
     }
 
@@ -412,7 +419,7 @@ export default function LegacyPiPage() {
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock: 2030 • v3.1</span>
+                <span>Unlock: 2030 • v3.2</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
                     {piSdkState === "ready" ? "Testnet Connected" : piSdkState === "loading" ? "Loading..." : "Pi Browser Required"}
