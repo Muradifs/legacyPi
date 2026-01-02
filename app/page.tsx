@@ -81,52 +81,77 @@ export default function LegacyPiPage() {
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- NOVA POBOLJŠANA LOGIKA UČITAVANJA SDK-a ---
+  // --- DEBUG LOGIKA UČITAVANJA SDK-a ---
   useEffect(() => {
-    console.log("LegacyPi v2.0 loaded");
+    console.log("LegacyPi v2.1 Debug loaded");
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
-    const initPi = () => {
-      try {
-        if (window.Pi) {
-          window.Pi.init({ version: "2.0", sandbox: true });
-          setPiSdkState("ready");
-          console.log("Pi SDK Initialized Successfully");
-        } else {
-          throw new Error("Pi object not found");
+    let attempts = 0;
+    
+    const initializePi = () => {
+        try {
+            if (window.Pi) {
+                // Pokušavamo inicijalizirati samo ako već nije
+                // Neki browseri automatski inicijaliziraju
+                window.Pi.init({ version: "2.0", sandbox: true });
+                setPiSdkState("ready");
+                console.log("Pi SDK Initialized");
+            } else {
+                setPiSdkState("failed");
+            }
+        } catch (e) {
+            console.warn("Pi Init caught error (maybe already init):", e);
+            setPiSdkState("ready"); // Pretpostavimo da je OK ako je bacio grešku "already initialized"
         }
-      } catch (e) {
-        console.warn("Pi SDK Init Warning:", e);
-        // Ako je init već pozvan, svejedno smatramo da je spreman
-        if (window.Pi) setPiSdkState("ready");
-        else setPiSdkState("failed");
+    };
+
+    const checkPiScript = () => {
+      if (window.Pi) {
+        initializePi();
+      } else {
+        attempts++;
+        if (attempts < 50) { 
+            // Ubacujemo skriptu ako fali
+            if (attempts === 2 && !document.querySelector('script[src*="pi-sdk.js"]')) {
+                const script = document.createElement('script');
+                script.src = "https://sdk.minepi.com/pi-sdk.js";
+                script.async = true;
+                script.onload = () => initializePi();
+                document.body.appendChild(script);
+            }
+            setTimeout(checkPiScript, 500);
+        } else {
+            setPiSdkState("failed");
+        }
       }
     };
 
-    // 1. Provjeri je li već učitan
-    if (window.Pi) {
-      initPi();
-    } else {
-      // 2. Ako nije, učitaj skriptu ručno
-      const script = document.createElement('script');
-      script.src = "https://sdk.minepi.com/pi-sdk.js";
-      script.async = true;
-      script.onload = () => initPi();
-      script.onerror = () => setPiSdkState("failed");
-      document.body.appendChild(script);
-    }
+    checkPiScript();
   }, [])
 
   const connectWallet = async () => {
+    // 1. Debug alert da vidimo je li gumb uopće radi
+    alert(`Debug: Connect clicked. SDK State: ${piSdkState}`);
+
     if (piSdkState !== "ready") {
-        alert("Pi sustav se još učitava. Pričekajte trenutak.");
+        alert("Pi SDK nije spreman. Pokušavam ponovno učitati...");
+        // Pokušaj ponovno inicijalizirati za svaki slučaj
+        try {
+             const script = document.createElement('script');
+             script.src = "https://sdk.minepi.com/pi-sdk.js";
+             script.async = true;
+             document.body.appendChild(script);
+        } catch (e) {}
         return;
     }
 
     try {
+      alert("Debug: Starting authentication..."); // 2. Debug alert
       const scopes = ['username', 'payments']
       const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound)
+      
+      alert(`Debug: Auth success! User: ${authResult.user.username}`); // 3. Debug alert
       setUser(authResult.user)
       
       setUserStats({
@@ -137,9 +162,9 @@ export default function LegacyPiPage() {
         ]
       })
 
-    } catch (err) {
-      console.error("Authentication failed", err)
-      alert("Povezivanje nije uspjelo. Provjerite jeste li u Pi Browseru.")
+    } catch (err: any) {
+      console.error("Auth failed", err)
+      alert("Debug Error: " + JSON.stringify(err)); // 4. Debug Error alert
     }
   }
 
@@ -447,10 +472,10 @@ export default function LegacyPiPage() {
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto">
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock Date: Jan 1, 2030 • v2.0</span>
-                <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-yellow-500"}`}>
+                <span>Unlock Date: Jan 1, 2030 • v2.1 (Debug)</span>
+                <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
-                    {piSdkState === "ready" ? "System: Ready" : "System: Loading..."}
+                    {piSdkState === "ready" ? "System: Ready" : piSdkState === "failed" ? "System: Failed (Not Found)" : "System: Loading..."}
                 </span>
             </div>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90"><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Days</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div></div></div>
