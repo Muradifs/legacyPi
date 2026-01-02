@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles, Activity } from "lucide-react"
 
-// Tvoja javna adresa trezora
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
 
 declare global {
@@ -15,7 +14,6 @@ declare global {
   }
 }
 
-// Logo komponenta
 const LegacyPiLogo = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="50" cy="50" r="45" fill="#2E0A36" stroke="#FBBF24" strokeWidth="2" />
@@ -81,9 +79,8 @@ export default function LegacyPiPage() {
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- DEBUG LOGIKA UČITAVANJA SDK-a ---
   useEffect(() => {
-    console.log("LegacyPi v2.1 Debug loaded");
+    console.log("LegacyPi v2.2 Debug loaded");
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
@@ -92,8 +89,6 @@ export default function LegacyPiPage() {
     const initializePi = () => {
         try {
             if (window.Pi) {
-                // Pokušavamo inicijalizirati samo ako već nije
-                // Neki browseri automatski inicijaliziraju
                 window.Pi.init({ version: "2.0", sandbox: true });
                 setPiSdkState("ready");
                 console.log("Pi SDK Initialized");
@@ -101,8 +96,8 @@ export default function LegacyPiPage() {
                 setPiSdkState("failed");
             }
         } catch (e) {
-            console.warn("Pi Init caught error (maybe already init):", e);
-            setPiSdkState("ready"); // Pretpostavimo da je OK ako je bacio grešku "already initialized"
+            console.warn("Pi Init caught error:", e);
+            setPiSdkState("ready"); 
         }
     };
 
@@ -112,7 +107,7 @@ export default function LegacyPiPage() {
       } else {
         attempts++;
         if (attempts < 50) { 
-            // Ubacujemo skriptu ako fali
+            // Injektiraj skriptu ako fali
             if (attempts === 2 && !document.querySelector('script[src*="pi-sdk.js"]')) {
                 const script = document.createElement('script');
                 script.src = "https://sdk.minepi.com/pi-sdk.js";
@@ -131,27 +126,19 @@ export default function LegacyPiPage() {
   }, [])
 
   const connectWallet = async () => {
-    // 1. Debug alert da vidimo je li gumb uopće radi
-    alert(`Debug: Connect clicked. SDK State: ${piSdkState}`);
+    // Ako vidite ovaj alert, gumb radi!
+    alert(`DEBUG: Button Clicked! SDK Status: ${piSdkState}`);
 
     if (piSdkState !== "ready") {
-        alert("Pi SDK nije spreman. Pokušavam ponovno učitati...");
-        // Pokušaj ponovno inicijalizirati za svaki slučaj
-        try {
-             const script = document.createElement('script');
-             script.src = "https://sdk.minepi.com/pi-sdk.js";
-             script.async = true;
-             document.body.appendChild(script);
-        } catch (e) {}
+        alert("Sustav se još učitava, pričekajte...");
         return;
     }
 
     try {
-      alert("Debug: Starting authentication..."); // 2. Debug alert
       const scopes = ['username', 'payments']
       const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound)
       
-      alert(`Debug: Auth success! User: ${authResult.user.username}`); // 3. Debug alert
+      alert(`Success! User: ${authResult.user.username}`);
       setUser(authResult.user)
       
       setUserStats({
@@ -164,7 +151,7 @@ export default function LegacyPiPage() {
 
     } catch (err: any) {
       console.error("Auth failed", err)
-      alert("Debug Error: " + JSON.stringify(err)); // 4. Debug Error alert
+      alert("Error: " + JSON.stringify(err));
     }
   }
 
@@ -175,7 +162,7 @@ export default function LegacyPiPage() {
   const handleDonation = async () => {
     if (!user) {
       await connectWallet()
-      if (!user) {
+      if (!window.Pi || !user) {
         setSlidePosition(0)
         return 
       }
@@ -303,6 +290,7 @@ export default function LegacyPiPage() {
 
   return (
     <div className="min-h-screen bg-[#1a0b2e] relative overflow-hidden text-white font-sans flex flex-col">
+      {/* Modali... */}
       {showLeaderboard && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
@@ -413,7 +401,7 @@ export default function LegacyPiPage() {
       </div>
 
       <div className="relative z-10 flex flex-col flex-1 w-full max-w-md mx-auto">
-        <header className="px-4 py-6">
+        <header className="px-4 py-6 bg-transparent relative z-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <LegacyPiLogo className="w-10 h-10" />
@@ -421,12 +409,25 @@ export default function LegacyPiPage() {
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={() => setShowShare(true)} variant="outline" size="icon" className="w-9 h-9 rounded-full bg-white/5 border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10"><Share2 className="w-4 h-4" /></Button>
-              <Button onClick={() => user ? setShowProfile(true) : connectWallet()} variant="outline" size="sm" className={`text-xs border-yellow-500/30 rounded-full px-4 transition-all duration-300 ${user ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/60' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}>{user ? <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>@{user.username}</span> : "Connect Wallet"}</Button>
+              {/* OVDJE JE PROMJENA: Koristimo običan HTML button i z-index fix */}
+              <button 
+                onClick={() => user ? setShowProfile(true) : connectWallet()}
+                className={`text-xs border border-yellow-500/30 rounded-full px-4 py-2 transition-all duration-300 font-semibold z-50 relative active:scale-95 ${user ? 'bg-yellow-500/20 text-yellow-400' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}
+              >
+                {user ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    @{user.username}
+                  </span>
+                ) : (
+                  "Connect Wallet"
+                )}
+              </button>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 flex flex-col items-center justify-center px-4 py-2 w-full">
+        <main className="flex-1 flex flex-col items-center justify-center px-4 py-2 w-full relative z-10">
           <div className="w-full space-y-6">
             <div className="flex items-center justify-center py-2">
               <div className="relative group cursor-default">
@@ -469,13 +470,13 @@ export default function LegacyPiPage() {
           </div>
         </main>
 
-        <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto">
+        <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock Date: Jan 1, 2030 • v2.1 (Debug)</span>
+                <span>Unlock Date: Jan 1, 2030 • v2.2 (Debug)</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
-                    {piSdkState === "ready" ? "System: Ready" : piSdkState === "failed" ? "System: Failed (Not Found)" : "System: Loading..."}
+                    {piSdkState === "ready" ? "SDK: Ready" : piSdkState === "failed" ? "SDK: Not Found" : "SDK: Loading..."}
                 </span>
             </div>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90"><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Days</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div></div></div>
