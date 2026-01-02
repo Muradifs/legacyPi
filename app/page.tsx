@@ -37,8 +37,8 @@ const BADGE_TIERS = [
 ];
 
 const ROADMAP_STEPS = [
-  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin.", status: "current" },
-  { year: "2026", title: "First Audit", description: "Public review of the Vault holdings.", status: "upcoming" },
+  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin. Smart Contract Deployment.", status: "current" },
+  { year: "2026", title: "First Audit", description: "Public review of the Vault holdings and blockchain verification report.", status: "upcoming" },
   { year: "2028", title: "Test Vote", description: "Trial run of the DAO voting system.", status: "upcoming" },
   { year: "2030", title: "THE UNLOCK", description: "Consensus Day. Funds released.", status: "locked" }
 ];
@@ -89,54 +89,38 @@ export default function LegacyPiPage() {
     });
   }
 
+  // --- ISPRAVLJENA LOGIKA UČITAVANJA (Preporuka: window load event) ---
   useEffect(() => {
-    addLog("LegacyPi v2.5 Started");
+    addLog("LegacyPi v2.6 Started");
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
-    let attempts = 0;
-    
     const initializePi = () => {
-        try {
-            if (window.Pi) {
-                window.Pi.init({ version: "2.0", sandbox: true });
-                setPiSdkState("ready");
-                addLog("SDK Init OK");
-            } else {
-                setPiSdkState("failed");
-                addLog("Pi missing during init");
-            }
-        } catch (e: any) {
-            addLog("Init Warn: " + (e.message || "Unknown"));
-            setPiSdkState("ready"); 
-        }
-    };
-
-    const checkPiScript = () => {
       if (window.Pi) {
-        addLog("window.Pi found");
-        initializePi();
-      } else {
-        attempts++;
-        if (attempts < 20) { 
-            if (attempts === 2 && !document.querySelector('script[src*="pi-sdk.js"]')) {
-                addLog("Injecting SDK...");
-                const script = document.createElement('script');
-                script.src = "https://sdk.minepi.com/pi-sdk.js";
-                script.async = true;
-                script.onload = () => initializePi();
-                script.onerror = () => addLog("Script Load Err");
-                document.body.appendChild(script);
-            }
-            setTimeout(checkPiScript, 500);
-        } else {
-            setPiSdkState("failed");
-            addLog("Timeout: No SDK");
+        try {
+          // Inicijalizacija. Koristimo sandbox: true za testiranje.
+          // Ako želite produkciju, promijenite u false, ali pazite na stvarne transakcije.
+          window.Pi.init({ version: "2.0", sandbox: true });
+          setPiSdkState("ready");
+          addLog("SDK Init OK (Sandbox)");
+        } catch (e: any) {
+          // Ponekad init baci grešku ako je već inicijaliziran, ali to znači da radi
+          addLog("Init status: " + (e.message || "Active"));
+          setPiSdkState("ready"); 
         }
+      } else {
+        setPiSdkState("failed");
+        addLog("window.Pi missing - Use Pi Browser");
       }
     };
 
-    checkPiScript();
+    // Ovo je ključno: Čekamo da se cijela stranica (uključujući vanjske skripte) učita
+    if (document.readyState === "complete") {
+      initializePi();
+    } else {
+      window.addEventListener("load", initializePi);
+      return () => window.removeEventListener("load", initializePi);
+    }
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
@@ -147,8 +131,8 @@ export default function LegacyPiPage() {
     addLog("Connect Clicked");
 
     if (piSdkState !== "ready") {
-        addLog("SDK not ready");
-        try { window.Pi.init({ version: "2.0", sandbox: true }); setPiSdkState("ready"); } catch(e) {}
+        addLog("SDK not ready yet. Reloading...");
+        window.location.reload(); // Ako SDK nije spreman na klik, najbolje je osvježiti
         return;
     }
 
@@ -427,10 +411,10 @@ export default function LegacyPiPage() {
         </main>
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
-          {/* DEBUG CONSOLE (v2.5) */}
+          {/* DEBUG CONSOLE (v2.6) */}
           <div className="mb-4 bg-black p-2 rounded text-[10px] font-mono text-green-400 h-24 overflow-y-auto border border-green-900 opacity-90">
             <div className="border-b border-green-900 mb-1 pb-1 flex justify-between items-center">
-                <span className="flex items-center gap-2"><Terminal className="w-3 h-3" /> CONSOLE v2.5</span>
+                <span className="flex items-center gap-2"><Terminal className="w-3 h-3" /> CONSOLE v2.6</span>
                 <button onClick={forceReload} className="bg-green-900 px-2 rounded text-white flex items-center gap-1 hover:bg-green-800"><RefreshCw className="w-3 h-3"/> Force Reload</button>
             </div>
             {logs.map((log, i) => <div key={i}>{`> ${log}`}</div>)}
@@ -438,7 +422,7 @@ export default function LegacyPiPage() {
 
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock: 2030 • v2.5</span>
+                <span>Unlock: 2030 • v2.6</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
                     {piSdkState === "ready" ? "System: Ready" : "System: Loading..."}
