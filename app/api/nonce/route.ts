@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { nonces } from "@/app/lib/nonce-store";
+// Koristimo relativnu putanju za sigurnost
+import { nonces } from "../../lib/nonce-store";
 
 export async function GET() {
   try {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { nonces } from "@/app/lib/nonce-store";
+// Koristimo relativnu putanju
+import { nonces } from "../../lib/nonce-store";
 import nacl from "tweetnacl";
 
 // Pomoćna funkcija za dekodiranje Base64
