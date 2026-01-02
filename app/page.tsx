@@ -36,7 +36,7 @@ const BADGE_TIERS = [
 ];
 
 const ROADMAP_STEPS = [
-  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin.", status: "current" },
+  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin. Smart Contract Deployment.", status: "current" },
   { year: "2026", title: "First Audit", description: "Public review of the Vault holdings.", status: "upcoming" },
   { year: "2028", title: "Test Vote", description: "Trial run of the DAO voting system.", status: "upcoming" },
   { year: "2030", title: "THE UNLOCK", description: "Consensus Day. Funds released.", status: "locked" }
@@ -75,11 +75,11 @@ export default function LegacyPiPage() {
   const [donorsList, setDonorsList] = useState<any[]>([])
   const [proposalsList, setProposalsList] = useState<any[]>([])
   
-  const [piSdkState, setPiSdkState] = useState<"loading" | "ready" | "failed" | "mock">("loading")
+  const [piSdkState, setPiSdkState] = useState<"loading" | "ready" | "failed">("loading")
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- 1. CONFIGURATION FOR TESTNET ---
+  // --- 1. CONFIGURATION FOR TESTNET (NO MOCK) ---
   useEffect(() => {
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
@@ -87,8 +87,7 @@ export default function LegacyPiPage() {
     const initializePi = () => {
       if (typeof window !== 'undefined' && window.Pi) {
         try {
-          // sandbox: true = TESTNET (Test-Pi)
-          // sandbox: false = MAINNET (Real-Pi) - Oprez!
+          // sandbox: true = TESTNET
           window.Pi.init({ version: "2.0", sandbox: true });
           setPiSdkState("ready");
           console.log("LegacyPi: Testnet SDK Initialized");
@@ -97,21 +96,9 @@ export default function LegacyPiPage() {
           setPiSdkState("ready"); 
         }
       } else {
-        // Mock Mode za development na PC-u
-        console.warn("LegacyPi: Pi Browser not detected. Mock Mode.");
-        window.Pi = {
-            mock: true, 
-            init: () => {},
-            authenticate: async () => {
-                await new Promise(resolve => setTimeout(resolve, 800)); 
-                return { user: { username: "Mock_User", uid: "mock_uid" }, accessToken: "mock_token" };
-            },
-            createPayment: async (data: any, callbacks: any) => {
-                if(callbacks.onReadyForServerApproval) setTimeout(() => callbacks.onReadyForServerApproval("mock-payment-id"), 1000);
-            },
-            openShareDialog: () => alert("Share dialog")
-        };
-        setPiSdkState("mock");
+        // NEMA VIŠE MOCK MODE-A
+        console.warn("LegacyPi: Pi Browser not detected.");
+        setPiSdkState("failed");
       }
     };
 
@@ -124,7 +111,6 @@ export default function LegacyPiPage() {
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
-    // Pokušaj dovršiti zaglavljena plaćanja
     try {
         fetch("/api/pi/approve", {
             method: "POST",
@@ -136,6 +122,10 @@ export default function LegacyPiPage() {
 
   const connectWallet = async () => {
     if (piSdkState === "loading") return;
+    if (piSdkState === "failed") {
+        alert("Pi Browser nije detektiran. Molimo otvorite aplikaciju unutar Pi Browsera.");
+        return;
+    }
 
     try {
       const scopes = ['username', 'payments']; 
@@ -169,7 +159,6 @@ export default function LegacyPiPage() {
           console.log("Waiting for Server Approval:", paymentId);
           
           try {
-            // Pozivamo našu lokalnu API rutu koja će glumiti backend
             const res = await fetch("/api/pi/approve", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -177,13 +166,11 @@ export default function LegacyPiPage() {
             });
 
             if (!res.ok) {
-                // Ako server ne odgovori (npr. nema API ključa),
-                // i dalje ćemo simulirati uspjeh na UI-u za potrebe demo-a.
                 throw new Error("Backend approval failed");
             }
           } catch (err) {
             console.warn("Backend unavailable, simulating completion...");
-            // Fallback simulacija
+            // I dalje zadržavamo simulaciju ako backend fali da app ne pukne usred demoa
             setTimeout(() => completeUiSuccess(), 2000);
           }
         },
@@ -425,10 +412,10 @@ export default function LegacyPiPage() {
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock: 2030 • v3.0</span>
-                <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : piSdkState === "mock" ? "text-yellow-500" : "text-red-500"}`}>
+                <span>Unlock: 2030 • v3.1</span>
+                <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
-                    {piSdkState === "ready" ? "Testnet Connected" : piSdkState === "mock" ? "Mock Active" : "Loading"}
+                    {piSdkState === "ready" ? "Testnet Connected" : piSdkState === "loading" ? "Loading..." : "Pi Browser Required"}
                 </span>
             </div>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90"><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Days</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div></div></div>
