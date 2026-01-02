@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { 
   Heart, Users, Shield, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, 
-  History, Lock, Map, Share2, Sparkles, Activity, Terminal, RefreshCw, 
+  History, Lock, Map, Share2, Sparkles, Activity, RefreshCw, 
   ChevronRight, Copy, Check 
 } from "lucide-react"
 
@@ -75,44 +75,32 @@ export default function LegacyPiPage() {
   const [donorsList, setDonorsList] = useState<any[]>([])
   const [proposalsList, setProposalsList] = useState<any[]>([])
   
+  // Status učitavanja Pi SDK-a
   const [piSdkState, setPiSdkState] = useState<"loading" | "ready" | "failed">("loading")
-  const [logs, setLogs] = useState<string[]>([])
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  const addLog = (msg: string) => {
-    console.log(msg);
-    setLogs(prev => {
-        const newLogs = [...prev, msg];
-        return newLogs.slice(-5);
-    });
-  }
-
-  // --- v2.7 POBOLJŠANA LOGIKA UČITAVANJA (Grok style) ---
+  // --- LOGIKA UČITAVANJA ---
   useEffect(() => {
-    addLog("v2.7 Init sequence started...");
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
     const initializePi = () => {
       if (window.Pi) {
         try {
-          // BITNO: Ovdje koristimo sandbox: true za testiranje bez backend servera.
-          // Za produkciju bi trebalo sandbox: false i pravi backend.
           window.Pi.init({ version: "2.0", sandbox: true });
           setPiSdkState("ready");
-          addLog("SDK Init Success (Sandbox)");
-        } catch (e: any) {
-          addLog("Init catch: " + (e.message || "Already init?"));
-          setPiSdkState("ready"); // Pretpostavljamo da je OK ako je već inicijaliziran
+          console.log("Pi SDK Initialized");
+        } catch (e) {
+          console.warn("Pi SDK Init Error:", e);
+          // Ako je već inicijaliziran, to je OK
+          setPiSdkState("ready"); 
         }
       } else {
         setPiSdkState("failed");
-        addLog("window.Pi not found. Are you in Pi Browser?");
       }
     };
 
-    // Provjeravamo je li stranica potpuno učitana prije inicijalizacije SDK-a
     if (document.readyState === "complete") {
       initializePi();
     } else {
@@ -122,34 +110,21 @@ export default function LegacyPiPage() {
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
-    addLog("Found incomplete payment: " + payment.identifier);
-    // Ovdje bi se normalno slalo serveru na dovršetak
+    console.log("Incomplete Payment Found:", payment);
+    // U produkciji ovdje šaljete podatke serveru
   };
 
   const connectWallet = async () => {
-    addLog("Connect clicked...");
-
     if (piSdkState !== "ready") {
-        addLog("SDK not ready. Attempting reload...");
-        // Ako SDK nije spreman, probaj ponovno inicijalizirati ili osvježiti
-        try {
-            if(window.Pi) {
-                window.Pi.init({ version: "2.0", sandbox: true });
-                setPiSdkState("ready");
-                addLog("Re-init success");
-            } else {
-                window.location.reload();
-            }
-        } catch(e) { window.location.reload(); }
+        // Ako nije spreman, probaj osvježiti stranicu
+        window.location.reload();
         return;
     }
 
     try {
-      addLog("Authenticating...");
       const scopes = ['username', 'payments']; 
       const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound);
       
-      addLog("Auth OK: " + authResult.user.username);
       setUser(authResult.user);
       
       setUserStats({
@@ -157,8 +132,9 @@ export default function LegacyPiPage() {
         donations: [{ date: "2024-12-20", amount: 100, tx: "G...7A" }]
       });
 
-    } catch (err: any) {
-      addLog("Auth Error: " + (err.message || JSON.stringify(err)));
+    } catch (err) {
+      console.error("Auth Error:", err);
+      alert("Autentifikacija nije uspjela. Molimo pokušajte ponovno.");
     }
   }
 
@@ -172,40 +148,33 @@ export default function LegacyPiPage() {
     }
 
     setPaymentStatus("processing")
-    addLog("Starting payment flow...");
 
     try {
       const paymentData = {
         amount: 1, 
         memo: "Donacija za Pi Legacy 2030", 
-        metadata: { type: "donation_2030" } // Opcionalno
+        metadata: { type: "donation_2030" }
       }
 
       const callbacks = {
         onReadyForServerApproval: (paymentId: string) => {
-          addLog("Waiting for Server Approval: " + paymentId);
-          // U PRODUKCIJI: Ovdje šaljete paymentId svom backendu.
-          // U DEMO/SANDBOXU BEZ BACKENDA: Mi ovdje "glumimo" uspjeh na frontendu.
-          // Transakcija na blockchainu se neće dovršiti bez backenda, ali UI će pokazati uspjeh.
+          // Simulacija uspjeha za frontend (jer nemamo pravi backend)
           completeUiSuccess();
         },
-        onServerApproval: (paymentId: string) => { 
-            console.log("Server approved");
-        },
+        onServerApproval: (paymentId: string) => { console.log("Server approved") },
         onCancel: (paymentId: string) => { 
           setPaymentStatus("idle");
           setSlidePosition(0);
-          addLog("User cancelled");
         },
         onError: (error: any, payment: any) => {
-          addLog("Payment Error: " + (error.message || JSON.stringify(error)));
+          console.error("Payment Error:", error);
           setPaymentStatus("error");
           setSlidePosition(0);
         },
       }
       await window.Pi.createPayment(paymentData, callbacks)
-    } catch (err: any) {
-      addLog("Payment Creation Failed: " + (err.message || "Unknown"));
+    } catch (err) {
+      console.error("Payment Creation Failed:", err);
       setSlidePosition(0);
       setPaymentStatus("idle");
     }
@@ -228,8 +197,7 @@ export default function LegacyPiPage() {
 
   const copyAddress = () => { navigator.clipboard.writeText(VAULT_ADDRESS); setCopied(true); setTimeout(() => setCopied(false), 2000) }
   const copyInvite = () => { navigator.clipboard.writeText(`Join LegacyPi! legacypi.app`); alert("Link copied!"); }
-  const forceReload = () => { window.location.reload(); }
-
+  
   // UI Helpers
   useEffect(() => {
     const targetDate = new Date("2030-01-01T00:00:00").getTime()
@@ -266,7 +234,7 @@ export default function LegacyPiPage() {
 
   return (
     <div className="min-h-screen bg-[#1a0b2e] relative overflow-hidden text-white font-sans flex flex-col">
-      {/* MODALS REDUCED FOR BREVITY - SAME AS BEFORE */}
+      {/* MODALS */}
       {showLeaderboard && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
@@ -372,7 +340,8 @@ export default function LegacyPiPage() {
               <Button onClick={() => setShowShare(true)} variant="outline" size="icon" className="w-9 h-9 rounded-full bg-white/5 border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10"><Share2 className="w-4 h-4" /></Button>
               <Button 
                 onClick={() => user ? setShowProfile(true) : connectWallet()}
-                className={`text-xs border border-yellow-500/30 rounded-full px-4 h-9 transition-all duration-300 font-semibold z-50 relative ${user ? 'bg-yellow-500/20 text-yellow-400' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}
+                disabled={piSdkState !== "ready"}
+                className={`text-xs border border-yellow-500/30 rounded-full px-4 h-9 transition-all duration-300 font-semibold z-50 relative ${user ? 'bg-yellow-500/20 text-yellow-400' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'} ${piSdkState !== "ready" ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {user ? `@${user.username}` : "Connect Wallet"}
               </Button>
@@ -424,21 +393,12 @@ export default function LegacyPiPage() {
         </main>
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
-          {/* DEBUG CONSOLE (v2.7) */}
-          <div className="mb-4 bg-black p-2 rounded text-[10px] font-mono text-green-400 h-24 overflow-y-auto border border-green-900 opacity-90">
-            <div className="border-b border-green-900 mb-1 pb-1 flex justify-between items-center">
-                <span className="flex items-center gap-2"><Terminal className="w-3 h-3" /> CONSOLE v2.7 (Stable Load)</span>
-                <button onClick={forceReload} className="bg-green-900 px-2 rounded text-white flex items-center gap-1 hover:bg-green-800"><RefreshCw className="w-3 h-3"/> Force Reload</button>
-            </div>
-            {logs.map((log, i) => <div key={i}>{`> ${log}`}</div>)}
-          </div>
-
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock: 2030 • v2.7</span>
+                <span>Unlock: 2030 • v2.8</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
-                    {piSdkState === "ready" ? "System: Ready" : "System: Loading..."}
+                    {piSdkState === "ready" ? "System: Ready" : "System: Loading"}
                 </span>
             </div>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90"><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Days</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div></div></div>
