@@ -4,9 +4,13 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Users, Shield, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles, Activity, Terminal, RefreshCw, ChevronRight, Copy, Check } from "lucide-react"
+// Uvozimo sve ikone eksplicitno da izbjegnemo ReferenceError
+import { 
+  Heart, Users, Shield, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, 
+  History, Lock, Map, Share2, Sparkles, Activity, Terminal, RefreshCw, 
+  ChevronRight, Copy, Check 
+} from "lucide-react"
 
-// Tvoja javna adresa trezora
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
 
 declare global {
@@ -33,7 +37,7 @@ const BADGE_TIERS = [
 ];
 
 const ROADMAP_STEPS = [
-  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin. Smart Contract Deployment.", status: "current" },
+  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin.", status: "current" },
   { year: "2026", title: "First Audit", description: "Public review of the Vault holdings.", status: "upcoming" },
   { year: "2028", title: "Test Vote", description: "Trial run of the DAO voting system.", status: "upcoming" },
   { year: "2030", title: "THE UNLOCK", description: "Consensus Day. Funds released.", status: "locked" }
@@ -79,11 +83,14 @@ export default function LegacyPiPage() {
 
   const addLog = (msg: string) => {
     console.log(msg);
-    setLogs(prev => [...prev.slice(-5), msg]); // Keep last 6 logs
+    setLogs(prev => {
+        const newLogs = [...prev, msg];
+        return newLogs.slice(-5);
+    });
   }
 
   useEffect(() => {
-    addLog("v2.4 Started");
+    addLog("LegacyPi v2.5 Started");
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
@@ -97,10 +104,10 @@ export default function LegacyPiPage() {
                 addLog("SDK Init OK");
             } else {
                 setPiSdkState("failed");
-                addLog("Pi object missing");
+                addLog("Pi missing during init");
             }
         } catch (e: any) {
-            addLog("Init Warn: " + e.message);
+            addLog("Init Warn: " + (e.message || "Unknown"));
             setPiSdkState("ready"); 
         }
     };
@@ -133,10 +140,7 @@ export default function LegacyPiPage() {
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
-    addLog("STUCK PAYMENT FOUND!");
-    addLog("ID: " + payment.identifier);
-    // U produkciji bi ovo poslali na server. 
-    // Ovdje samo bilježimo da znamo zašto auth možda zapinje.
+    addLog("STUCK PAYMENT: " + payment.identifier);
   };
 
   const connectWallet = async () => {
@@ -156,15 +160,13 @@ export default function LegacyPiPage() {
       addLog("Auth OK: " + authResult.user.username);
       setUser(authResult.user);
       
-      // Mock data load
       setUserStats({
         totalDonated: 125,
         donations: [{ date: "2024-12-20", amount: 100, tx: "G...7A" }]
       });
 
     } catch (err: any) {
-      addLog("Auth Fail: " + JSON.stringify(err));
-      if (err?.message) addLog("Msg: " + err.message);
+      addLog("Auth Fail: " + (err.message || JSON.stringify(err)));
     }
   }
 
@@ -199,14 +201,14 @@ export default function LegacyPiPage() {
           addLog("Pay Cancelled");
         },
         onError: (error: any, payment: any) => {
-          addLog("Pay Error: " + JSON.stringify(error));
+          addLog("Pay Error: " + (error.message || "Unknown error"));
           setPaymentStatus("error");
           setSlidePosition(0);
         },
       }
       await window.Pi.createPayment(paymentData, callbacks)
     } catch (err: any) {
-      addLog("Pay Create Fail: " + err.message);
+      addLog("Create Fail: " + (err.message || "Unknown"));
       setSlidePosition(0);
       setPaymentStatus("idle");
     }
@@ -425,10 +427,10 @@ export default function LegacyPiPage() {
         </main>
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
-          {/* DEBUG CONSOLE (v2.4) */}
+          {/* DEBUG CONSOLE (v2.5) */}
           <div className="mb-4 bg-black p-2 rounded text-[10px] font-mono text-green-400 h-24 overflow-y-auto border border-green-900 opacity-90">
             <div className="border-b border-green-900 mb-1 pb-1 flex justify-between items-center">
-                <span className="flex items-center gap-2"><Terminal className="w-3 h-3" /> CONSOLE v2.4</span>
+                <span className="flex items-center gap-2"><Terminal className="w-3 h-3" /> CONSOLE v2.5</span>
                 <button onClick={forceReload} className="bg-green-900 px-2 rounded text-white flex items-center gap-1 hover:bg-green-800"><RefreshCw className="w-3 h-3"/> Force Reload</button>
             </div>
             {logs.map((log, i) => <div key={i}>{`> ${log}`}</div>)}
@@ -436,7 +438,7 @@ export default function LegacyPiPage() {
 
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock: 2030 • v2.4</span>
+                <span>Unlock: 2030 • v2.5</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
                     {piSdkState === "ready" ? "System: Ready" : "System: Loading..."}
