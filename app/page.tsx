@@ -79,39 +79,43 @@ export default function LegacyPiPage() {
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- 1. CONFIGURATION FOR TESTNET (WITH RETRY) ---
+  // --- 1. ROBUSTNO UČITAVANJE SDK-a (v3.3) ---
   useEffect(() => {
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
-    let attempts = 0;
-    const maxAttempts = 20; // 10 seconds total wait time
-
-    // Funkcija koja provjerava postoji li Pi svakih 500ms
-    const checkPiInterval = setInterval(() => {
-      if (typeof window !== 'undefined' && window.Pi) {
-        try {
-          // Found Pi! Initialize.
-          window.Pi.init({ version: "2.0", sandbox: true });
-          setPiSdkState("ready");
-          console.log("LegacyPi: Testnet SDK Initialized");
-        } catch (e) {
-          console.warn("LegacyPi: SDK Init Warning", e);
-          setPiSdkState("ready"); // Pretpostavljamo da je OK ako je već inicijaliziran
-        }
-        clearInterval(checkPiInterval); // Stop checking
-      } else {
-        attempts++;
-        if (attempts >= maxAttempts) {
-            // Give up after 10 seconds
-            console.warn("LegacyPi: Pi Browser not detected after retries.");
-            setPiSdkState("failed");
-            clearInterval(checkPiInterval);
-        }
+    const initializePi = () => {
+      try {
+        // Init SDK
+        window.Pi.init({ version: "2.0", sandbox: true });
+        setPiSdkState("ready");
+        console.log("LegacyPi: Testnet SDK Initialized");
+      } catch (e) {
+        // Ako je već inicijaliziran, to je u redu
+        console.warn("LegacyPi: SDK Init Warning", e);
+        setPiSdkState("ready"); 
       }
-    }, 500);
+    };
 
-    return () => clearInterval(checkPiInterval);
+    // Provjera i injekcija skripte
+    if (window.Pi) {
+        initializePi();
+    } else {
+        // Ako nema Pi objekta, učitaj skriptu ručno
+        console.log("LegacyPi: Pi not found, injecting script...");
+        const script = document.createElement('script');
+        script.src = "https://sdk.minepi.com/pi-sdk.js";
+        script.async = true;
+        script.onload = () => {
+            console.log("LegacyPi: Script loaded, initializing...");
+            setTimeout(initializePi, 500); // Kratka pauza da budemo sigurni
+        };
+        script.onerror = () => {
+            console.error("LegacyPi: Failed to load script");
+            setPiSdkState("failed");
+        };
+        document.head.appendChild(script);
+    }
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
@@ -126,11 +130,14 @@ export default function LegacyPiPage() {
 
   const connectWallet = async () => {
     if (piSdkState === "loading") {
-        alert("Sustav se još učitava... Pričekajte trenutak.");
+        alert("Sustav se još povezuje s Pi mrežom... Molimo pričekajte.");
         return;
     }
     if (piSdkState === "failed") {
-        alert("Pi Browser nije detektiran. Jeste li sigurno u Pi Browseru? Probajte osvježiti stranicu.");
+        // Ako je propalo, gumb sada osvježava stranicu
+        if (confirm("Nije uspjelo povezivanje s Pi Browserom. Želite li osvježiti stranicu?")) {
+            window.location.reload();
+        }
         return;
     }
 
@@ -141,11 +148,11 @@ export default function LegacyPiPage() {
       setUserStats({ totalDonated: 125, donations: [{ date: "2024-12-20", amount: 100, tx: "G...7A" }] });
     } catch (err: any) {
       console.error("Auth Error:", err);
-      alert("Autentifikacija nije uspjela.");
+      alert("Autentifikacija nije uspjela. Provjerite jeste li u Pi Browseru.");
     }
   }
 
-  // --- 2. TESTNET PAYMENT LOGIC ---
+  // --- 2. PAYMENT LOGIC ---
   const handleDonation = async () => {
     if (!user) {
       await connectWallet();
@@ -177,7 +184,6 @@ export default function LegacyPiPage() {
             }
           } catch (err) {
             console.warn("Backend unavailable, simulating completion...");
-            // I dalje zadržavamo simulaciju ako backend fali da app ne pukne usred demoa
             setTimeout(() => completeUiSuccess(), 2000);
           }
         },
@@ -419,7 +425,7 @@ export default function LegacyPiPage() {
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock: 2030 • v3.2</span>
+                <span>Unlock: 2030 • v3.3</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
                     {piSdkState === "ready" ? "Testnet Connected" : piSdkState === "loading" ? "Loading..." : "Pi Browser Required"}
