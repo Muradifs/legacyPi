@@ -1,57 +1,30 @@
 import { NextResponse } from "next/server";
-// Koristimo relativnu putanju
-import { nonces } from "../../lib/nonce-store";
-import nacl from "tweetnacl";
+import { randomBytes } from "crypto";
 
-// Pomoćna funkcija za dekodiranje Base64
-function base64ToUint8Array(s: string) {
-  return Uint8Array.from(Buffer.from(s, "base64"));
+// Globalna varijabla za pohranu (radi na serverlessu dok je instanca živa)
+// U produkciji bi ovo bio Redis, ali za demo je ovo dovoljno.
+if (!global.nonceStore) {
+  global.nonceStore = new Map<string, string>();
 }
 
-export async function POST(request: Request) {
+export async function GET() {
   try {
-    const body = await request.json();
-    const { nonceId, nonce, publicKey, signature } = body;
+    const nonceBytes = randomBytes(32);
+    const nonce = nonceBytes.toString("base64");
+    const nonceId = randomBytes(8).toString("hex");
 
-    // 1. Provjeri nedostaju li podaci
-    if (!nonceId || !nonce || !publicKey || !signature) {
-      return NextResponse.json({ message: "Missing fields" }, { status: 400 });
-    }
-
-    // 2. Provjeri je li nonce valjan i postoji li u našem spremištu
-    const expectedNonce = nonces.get(nonceId);
-    if (!expectedNonce || expectedNonce !== nonce) {
-      return NextResponse.json({ message: "Invalid or expired nonce" }, { status: 400 });
-    }
-
-    // 3. Pripremi podatke za verifikaciju (pretvori u Uint8Array)
-    // Pi Network obično šalje publicKey i signature kao stringove, pa ih trebamo dekodirati.
-    // Ovisno o tome šalje li Pi base64 ili hex, možda ćete morati prilagoditi dekodiranje.
-    // Ovdje pretpostavljamo Base64 kako je u vašem primjeru.
+    global.nonceStore.set(nonceId, nonce);
     
-    const msg = base64ToUint8Array(nonce);     // Poruka koja je potpisana
-    const sig = base64ToUint8Array(signature); // Potpis
-    const pub = base64ToUint8Array(publicKey); // Javni ključ korisnika
+    // Briši nakon 2 min
+    setTimeout(() => global.nonceStore.delete(nonceId), 120000);
 
-    // 4. Verificiraj potpis koristeći Ed25519 (tweetnacl)
-    const isValid = nacl.sign.detached.verify(msg, sig, pub);
-
-    if (!isValid) {
-      return NextResponse.json({ success: false, message: "Signature invalid" }, { status: 401 });
-    }
-
-    // 5. Uspjeh! Obriši iskorišteni nonce
-    nonces.delete(nonceId);
-
-    // Ovdje biste u pravoj aplikaciji kreirali sesiju ili JWT token
-    return NextResponse.json({ 
-        success: true, 
-        message: "Verified", 
-        user: { publicKey: publicKey } // Vraćamo podatke klijentu
-    });
-
-  } catch (err: any) {
-    console.error("Verify error:", err);
-    return NextResponse.json({ message: "Server error", error: String(err) }, { status: 500 });
+    return NextResponse.json({ nonce, nonceId });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to generate nonce" }, { status: 500 });
   }
+}
+
+// Deklaracija za TypeScript da ne viče
+declare global {
+  var nonceStore: Map<string, string>;
 }

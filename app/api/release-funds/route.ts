@@ -1,41 +1,30 @@
-import { NextResponse } from "next/server"
-import { piLegacyVault } from "@/lib/pi-legacy-vault"
-import type { ConsensusDecision } from "@/lib/pi-legacy-vault"
+import { NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 
-export async function POST(request: Request) {
+// Globalna varijabla za pohranu (radi na serverlessu dok je instanca živa)
+// U produkciji bi ovo bio Redis, ali za demo je ovo dovoljno.
+if (!global.nonceStore) {
+  global.nonceStore = new Map<string, string>();
+}
+
+export async function GET() {
   try {
-    const body = await request.json()
-    const consensusDecision: ConsensusDecision = body.consensusDecision
+    const nonceBytes = randomBytes(32);
+    const nonce = nonceBytes.toString("base64");
+    const nonceId = randomBytes(8).toString("hex");
 
-    // Validate consensus decision structure
-    if (
-      !consensusDecision ||
-      typeof consensusDecision.isValid !== "boolean" ||
-      !consensusDecision.purpose ||
-      !consensusDecision.requestedAmount
-    ) {
-      return NextResponse.json({ error: "Invalid consensus decision format" }, { status: 400 })
-    }
+    global.nonceStore.set(nonceId, nonce);
+    
+    // Briši nakon 2 min
+    setTimeout(() => global.nonceStore.delete(nonceId), 120000);
 
-    const result = await piLegacyVault.releaseFunds(consensusDecision)
-
-    return NextResponse.json({
-      success: true,
-      data: result,
-      message: "Funds released successfully",
-    })
+    return NextResponse.json({ nonce, nonceId });
   } catch (error) {
-    console.error("[v0] Release funds API error:", error)
-
-    // Return the specific error message (especially for time-lock violations)
-    const errorMessage = error instanceof Error ? error.message : "Failed to release funds"
-
-    return NextResponse.json(
-      {
-        error: errorMessage,
-        success: false,
-      },
-      { status: error instanceof Error && error.message.includes("ACCESS DENIED") ? 403 : 500 },
-    )
+    return NextResponse.json({ error: "Failed to generate nonce" }, { status: 500 });
   }
+}
+
+// Deklaracija za TypeScript da ne viče
+declare global {
+  var nonceStore: Map<string, string>;
 }
