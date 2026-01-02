@@ -10,17 +10,14 @@ import {
   ChevronRight, Copy, Check 
 } from "lucide-react"
 
-// --- KONFIGURACIJA ---
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
 
-// --- TIPOVI ---
 declare global {
   interface Window {
     Pi: any;
   }
 }
 
-// --- KOMPONENTE ---
 const LegacyPiLogo = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="50" cy="50" r="45" fill="#2E0A36" stroke="#FBBF24" strokeWidth="2" />
@@ -31,7 +28,6 @@ const LegacyPiLogo = ({ className }: { className?: string }) => (
   </svg>
 )
 
-// --- PODACI ---
 const BADGE_TIERS = [
   { id: 1, name: "Bronze Guardian", threshold: 1, color: "text-orange-400", bg: "bg-orange-400/20", border: "border-orange-400/50" },
   { id: 2, name: "Silver Keeper", threshold: 100, color: "text-gray-300", bg: "bg-gray-300/20", border: "border-gray-300/50" },
@@ -46,7 +42,20 @@ const ROADMAP_STEPS = [
   { year: "2030", title: "THE UNLOCK", description: "Consensus Day. Funds released.", status: "locked" }
 ];
 
-// --- GLAVNA KOMPONENTA ---
+const generateMockDonors = () => {
+  return Array.from({ length: 50 }, (_, i) => ({
+    rank: i + 1,
+    username: i === 0 ? "CryptoKing_Pi" : `Pioneer_${Math.floor(Math.random() * 9000) + 1000}`,
+    wallet: `G${Math.random().toString(36).substring(2, 6).toUpperCase()}...`,
+    amount: i === 0 ? 5000 : Math.floor(1000 - i * 15)
+  }));
+};
+
+const generateMockProposals = () => [
+  { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "20% of Vault", description: "Building schools.", votes: 1245, category: "Education" },
+  { id: 2, title: "Pi Liquidity Pool", recipient: "Pi DEX", amount: "40% of Vault", description: "Stabilizing Pi value.", votes: 3892, category: "Finance" }
+];
+
 export default function LegacyPiPage() {
   const [user, setUser] = useState<any>(null)
   const [userStats, setUserStats] = useState({ totalDonated: 0, donations: [] as any[] })
@@ -70,58 +79,38 @@ export default function LegacyPiPage() {
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- INIT & MOCK LOGIKA ---
+  // --- 1. CONFIGURATION FOR TESTNET ---
   useEffect(() => {
-    // Generiraj mock podatke
-    setDonorsList(Array.from({ length: 50 }, (_, i) => ({
-        rank: i + 1,
-        username: i === 0 ? "CryptoKing_Pi" : `Pioneer_${Math.floor(Math.random() * 9000) + 1000}`,
-        wallet: `G${Math.random().toString(36).substring(2, 6).toUpperCase()}...`,
-        amount: i === 0 ? 5000 : Math.floor(1000 - i * 15)
-    })));
-    
-    setProposalsList([
-        { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "20% of Vault", description: "Building schools.", votes: 1245, category: "Education" },
-        { id: 2, title: "Pi Liquidity Pool", recipient: "Pi DEX", amount: "40% of Vault", description: "Stabilizing Pi value.", votes: 3892, category: "Finance" }
-    ]);
+    setDonorsList(generateMockDonors())
+    setProposalsList(generateMockProposals())
 
     const initializePi = () => {
-      // 1. Provjera za pravi Pi Browser
       if (typeof window !== 'undefined' && window.Pi) {
         try {
-          // Sandbox: true za testiranje bez backenda
+          // sandbox: true = TESTNET (Test-Pi)
+          // sandbox: false = MAINNET (Real-Pi) - Oprez!
           window.Pi.init({ version: "2.0", sandbox: true });
           setPiSdkState("ready");
-          console.log("LegacyPi: Real Pi SDK Initialized");
+          console.log("LegacyPi: Testnet SDK Initialized");
         } catch (e) {
           console.warn("LegacyPi: SDK Init Warning", e);
           setPiSdkState("ready"); 
         }
       } else {
-        // 2. Mock Mode za preglednike
-        console.warn("LegacyPi: Pi Browser not detected. Mock Mode Active.");
-        
+        // Mock Mode za development na PC-u
+        console.warn("LegacyPi: Pi Browser not detected. Mock Mode.");
         window.Pi = {
             mock: true, 
             init: () => {},
-            authenticate: async (scopes: any, onIncomplete: any) => {
+            authenticate: async () => {
                 await new Promise(resolve => setTimeout(resolve, 800)); 
-                return { 
-                    user: { username: "Mock_Pioneer", uid: "mock_uid_123" }, 
-                    accessToken: "mock_token_xyz" 
-                };
+                return { user: { username: "Mock_User", uid: "mock_uid" }, accessToken: "mock_token" };
             },
             createPayment: async (data: any, callbacks: any) => {
-                console.log("Mock Payment:", data);
-                if (callbacks.onReadyForServerApproval) {
-                    setTimeout(() => callbacks.onReadyForServerApproval("mock-payment-id-999"), 1000);
-                }
+                if(callbacks.onReadyForServerApproval) setTimeout(() => callbacks.onReadyForServerApproval("mock-payment-id"), 1000);
             },
-            openShareDialog: (title: string, message: string) => {
-                alert(`Mock Share:\n${title}\n${message}`);
-            }
+            openShareDialog: () => alert("Share dialog")
         };
-        
         setPiSdkState("mock");
       }
     };
@@ -135,9 +124,8 @@ export default function LegacyPiPage() {
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
-    console.log("Found unfinished payment: " + payment.identifier);
+    // Pokušaj dovršiti zaglavljena plaćanja
     try {
-        // Pokušaj poslati na backend ako postoji
         fetch("/api/pi/approve", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -147,10 +135,7 @@ export default function LegacyPiPage() {
   };
 
   const connectWallet = async () => {
-    if (piSdkState === "loading") {
-        alert("Sustav se inicijalizira...");
-        return;
-    }
+    if (piSdkState === "loading") return;
 
     try {
       const scopes = ['username', 'payments']; 
@@ -163,7 +148,7 @@ export default function LegacyPiPage() {
     }
   }
 
-  // --- KEY PAYMENT LOGIC (Hybrid) ---
+  // --- 2. TESTNET PAYMENT LOGIC ---
   const handleDonation = async () => {
     if (!user) {
       await connectWallet();
@@ -174,24 +159,31 @@ export default function LegacyPiPage() {
   
     try {
       const paymentData = {
-        amount: 1,
-        memo: "Donacija za Pi Legacy 2030",
+        amount: 1, // Iznos u Test-Pi
+        memo: "Donacija za Pi Legacy 2030 (Testnet)",
         metadata: { type: "donation_2030", vault: VAULT_ADDRESS }
       };
   
       const callbacks = {
         onReadyForServerApproval: async (paymentId: string) => {
-          console.log("Server Approval Needed:", paymentId);
-          // HIBRIDNI PRISTUP: Probaj backend, ako ne ide, simuliraj.
+          console.log("Waiting for Server Approval:", paymentId);
+          
           try {
+            // Pozivamo našu lokalnu API rutu koja će glumiti backend
             const res = await fetch("/api/pi/approve", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ paymentId }),
             });
-            if (!res.ok) throw new Error("Backend error");
+
+            if (!res.ok) {
+                // Ako server ne odgovori (npr. nema API ključa),
+                // i dalje ćemo simulirati uspjeh na UI-u za potrebe demo-a.
+                throw new Error("Backend approval failed");
+            }
           } catch (err) {
-            console.log("Backend failed, simulating success for demo...");
+            console.warn("Backend unavailable, simulating completion...");
+            // Fallback simulacija
             setTimeout(() => completeUiSuccess(), 2000);
           }
         },
@@ -272,12 +264,6 @@ export default function LegacyPiPage() {
 
   return (
     <div className="min-h-screen bg-[#1a0b2e] relative overflow-hidden text-white font-sans flex flex-col">
-      
-      {/* STATUS BADGE */}
-      <div className={`text-center py-1 text-[10px] font-bold uppercase tracking-widest ${piSdkState === "mock" ? "bg-yellow-500 text-black" : "bg-green-600 text-white"}`}>
-        {piSdkState === "mock" ? "⚠️ Mock Mode Active (Simulation)" : piSdkState === "ready" ? "✅ Pi Network Connected" : "⏳ Loading Pi..."}
-      </div>
-
       {/* MODALS */}
       {showLeaderboard && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
@@ -296,8 +282,6 @@ export default function LegacyPiPage() {
           </div>
         </div>
       )}
-      
-      {/* ... (Ostali modali su isti kao prije, ne ponavljam ih radi preglednosti, ali su tu) ... */}
       
       {showProposals && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
@@ -441,10 +425,10 @@ export default function LegacyPiPage() {
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock: 2030 • v2.16</span>
+                <span>Unlock: 2030 • v3.0</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : piSdkState === "mock" ? "text-yellow-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
-                    {piSdkState === "ready" ? "System: Ready" : piSdkState === "mock" ? "System: Mock Ready" : "System: Loading"}
+                    {piSdkState === "ready" ? "Testnet Connected" : piSdkState === "mock" ? "Mock Active" : "Loading"}
                 </span>
             </div>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90"><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Days</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div></div></div>
