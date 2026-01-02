@@ -4,7 +4,6 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-// Uvozimo sve ikone eksplicitno da izbjegnemo ReferenceError
 import { 
   Heart, Users, Shield, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, 
   History, Lock, Map, Share2, Sparkles, Activity, Terminal, RefreshCw, 
@@ -89,32 +88,31 @@ export default function LegacyPiPage() {
     });
   }
 
-  // --- ISPRAVLJENA LOGIKA UČITAVANJA (Preporuka: window load event) ---
+  // --- v2.7 POBOLJŠANA LOGIKA UČITAVANJA (Grok style) ---
   useEffect(() => {
-    addLog("LegacyPi v2.6 Started");
+    addLog("v2.7 Init sequence started...");
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
     const initializePi = () => {
       if (window.Pi) {
         try {
-          // Inicijalizacija. Koristimo sandbox: true za testiranje.
-          // Ako želite produkciju, promijenite u false, ali pazite na stvarne transakcije.
+          // BITNO: Ovdje koristimo sandbox: true za testiranje bez backend servera.
+          // Za produkciju bi trebalo sandbox: false i pravi backend.
           window.Pi.init({ version: "2.0", sandbox: true });
           setPiSdkState("ready");
-          addLog("SDK Init OK (Sandbox)");
+          addLog("SDK Init Success (Sandbox)");
         } catch (e: any) {
-          // Ponekad init baci grešku ako je već inicijaliziran, ali to znači da radi
-          addLog("Init status: " + (e.message || "Active"));
-          setPiSdkState("ready"); 
+          addLog("Init catch: " + (e.message || "Already init?"));
+          setPiSdkState("ready"); // Pretpostavljamo da je OK ako je već inicijaliziran
         }
       } else {
         setPiSdkState("failed");
-        addLog("window.Pi missing - Use Pi Browser");
+        addLog("window.Pi not found. Are you in Pi Browser?");
       }
     };
 
-    // Ovo je ključno: Čekamo da se cijela stranica (uključujući vanjske skripte) učita
+    // Provjeravamo je li stranica potpuno učitana prije inicijalizacije SDK-a
     if (document.readyState === "complete") {
       initializePi();
     } else {
@@ -124,15 +122,25 @@ export default function LegacyPiPage() {
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
-    addLog("STUCK PAYMENT: " + payment.identifier);
+    addLog("Found incomplete payment: " + payment.identifier);
+    // Ovdje bi se normalno slalo serveru na dovršetak
   };
 
   const connectWallet = async () => {
-    addLog("Connect Clicked");
+    addLog("Connect clicked...");
 
     if (piSdkState !== "ready") {
-        addLog("SDK not ready yet. Reloading...");
-        window.location.reload(); // Ako SDK nije spreman na klik, najbolje je osvježiti
+        addLog("SDK not ready. Attempting reload...");
+        // Ako SDK nije spreman, probaj ponovno inicijalizirati ili osvježiti
+        try {
+            if(window.Pi) {
+                window.Pi.init({ version: "2.0", sandbox: true });
+                setPiSdkState("ready");
+                addLog("Re-init success");
+            } else {
+                window.location.reload();
+            }
+        } catch(e) { window.location.reload(); }
         return;
     }
 
@@ -150,7 +158,7 @@ export default function LegacyPiPage() {
       });
 
     } catch (err: any) {
-      addLog("Auth Fail: " + (err.message || JSON.stringify(err)));
+      addLog("Auth Error: " + (err.message || JSON.stringify(err)));
     }
   }
 
@@ -164,35 +172,40 @@ export default function LegacyPiPage() {
     }
 
     setPaymentStatus("processing")
-    addLog("Creating Payment...");
+    addLog("Starting payment flow...");
 
     try {
       const paymentData = {
         amount: 1, 
         memo: "Donacija za Pi Legacy 2030", 
-        metadata: { type: "donation_2030" }
+        metadata: { type: "donation_2030" } // Opcionalno
       }
 
       const callbacks = {
         onReadyForServerApproval: (paymentId: string) => {
-          addLog("Pay ID: " + paymentId);
+          addLog("Waiting for Server Approval: " + paymentId);
+          // U PRODUKCIJI: Ovdje šaljete paymentId svom backendu.
+          // U DEMO/SANDBOXU BEZ BACKENDA: Mi ovdje "glumimo" uspjeh na frontendu.
+          // Transakcija na blockchainu se neće dovršiti bez backenda, ali UI će pokazati uspjeh.
           completeUiSuccess();
         },
-        onServerApproval: (paymentId: string) => { console.log("Approved") },
+        onServerApproval: (paymentId: string) => { 
+            console.log("Server approved");
+        },
         onCancel: (paymentId: string) => { 
           setPaymentStatus("idle");
           setSlidePosition(0);
-          addLog("Pay Cancelled");
+          addLog("User cancelled");
         },
         onError: (error: any, payment: any) => {
-          addLog("Pay Error: " + (error.message || "Unknown error"));
+          addLog("Payment Error: " + (error.message || JSON.stringify(error)));
           setPaymentStatus("error");
           setSlidePosition(0);
         },
       }
       await window.Pi.createPayment(paymentData, callbacks)
     } catch (err: any) {
-      addLog("Create Fail: " + (err.message || "Unknown"));
+      addLog("Payment Creation Failed: " + (err.message || "Unknown"));
       setSlidePosition(0);
       setPaymentStatus("idle");
     }
@@ -411,10 +424,10 @@ export default function LegacyPiPage() {
         </main>
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
-          {/* DEBUG CONSOLE (v2.6) */}
+          {/* DEBUG CONSOLE (v2.7) */}
           <div className="mb-4 bg-black p-2 rounded text-[10px] font-mono text-green-400 h-24 overflow-y-auto border border-green-900 opacity-90">
             <div className="border-b border-green-900 mb-1 pb-1 flex justify-between items-center">
-                <span className="flex items-center gap-2"><Terminal className="w-3 h-3" /> CONSOLE v2.6</span>
+                <span className="flex items-center gap-2"><Terminal className="w-3 h-3" /> CONSOLE v2.7 (Stable Load)</span>
                 <button onClick={forceReload} className="bg-green-900 px-2 rounded text-white flex items-center gap-1 hover:bg-green-800"><RefreshCw className="w-3 h-3"/> Force Reload</button>
             </div>
             {logs.map((log, i) => <div key={i}>{`> ${log}`}</div>)}
@@ -422,7 +435,7 @@ export default function LegacyPiPage() {
 
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock: 2030 • v2.6</span>
+                <span>Unlock: 2030 • v2.7</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
                     {piSdkState === "ready" ? "System: Ready" : "System: Loading..."}
