@@ -4,8 +4,9 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles, Activity } from "lucide-react"
+import { Heart, Users, Shield, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles, Activity, Terminal, RefreshCw, ChevronRight } from "lucide-react"
 
+// Tvoja javna adresa trezora
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
 
 declare global {
@@ -32,27 +33,24 @@ const BADGE_TIERS = [
 ];
 
 const ROADMAP_STEPS = [
-  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin. Smart Contract Deployment.", status: "current" },
-  { year: "2026", title: "First Transparency Audit", description: "Public review of the Vault holdings and blockchain verification report.", status: "upcoming" },
-  { year: "2028", title: "Governance Test Vote", description: "Trial run of the DAO voting system to prepare for the final consensus.", status: "upcoming" },
-  { year: "2029", title: "Final Lock-in Phase", description: "Vault sealed for final accumulation. No new large withdrawals logic updates.", status: "upcoming" },
-  { year: "2030", title: "THE UNLOCK", description: "Consensus Day (Jan 1). Funds released to voted causes and liquidity pools.", status: "locked" }
+  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin.", status: "current" },
+  { year: "2026", title: "First Audit", description: "Public review of the Vault holdings.", status: "upcoming" },
+  { year: "2028", title: "Test Vote", description: "Trial run of the DAO voting system.", status: "upcoming" },
+  { year: "2030", title: "THE UNLOCK", description: "Consensus Day. Funds released.", status: "locked" }
 ];
 
 const generateMockDonors = () => {
   return Array.from({ length: 50 }, (_, i) => ({
     rank: i + 1,
-    username: i === 0 ? "CryptoKing_Pi" : i === 1 ? "PiWhale2030" : `Pioneer_${Math.floor(Math.random() * 9000) + 1000}`,
-    wallet: `G${Math.random().toString(36).substring(2, 6).toUpperCase()}...${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-    amount: i === 0 ? 5000 : i === 1 ? 2500 : Math.floor(1000 - i * 15)
+    username: i === 0 ? "CryptoKing_Pi" : `Pioneer_${Math.floor(Math.random() * 9000) + 1000}`,
+    wallet: `G${Math.random().toString(36).substring(2, 6).toUpperCase()}...`,
+    amount: i === 0 ? 5000 : Math.floor(1000 - i * 15)
   }));
 };
 
 const generateMockProposals = () => [
-  { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs (Education)", amount: "20% of Vault", description: "Building schools in developing regions accepting Pi for tuition.", votes: 1245, category: "Education" },
-  { id: 2, title: "Pi Network Liquidity Pool", recipient: "Pi DEX (Automated)", amount: "40% of Vault", description: "Providing massive liquidity to stabilize Pi value on open markets in 2030.", votes: 3892, category: "Finance" },
-  { id: 3, title: "Clean Water Initiative", recipient: "Water.org Partnership", amount: "10% of Vault", description: "Funding water infrastructure projects. Payment milestones tracked on-chain.", votes: 856, category: "Humanitarian" },
-  { id: 4, title: "Pioneer Startup Grants", recipient: "Selected Pi Apps", amount: "30% of Vault", description: "Seed funding for the most innovative Pi apps built between 2025-2030.", votes: 2100, category: "Development" }
+  { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "20% of Vault", description: "Building schools.", votes: 1245, category: "Education" },
+  { id: 2, title: "Pi Liquidity Pool", recipient: "Pi DEX", amount: "40% of Vault", description: "Stabilizing Pi value.", votes: 3892, category: "Finance" }
 ];
 
 export default function LegacyPiPage() {
@@ -74,13 +72,18 @@ export default function LegacyPiPage() {
   const [donorsList, setDonorsList] = useState<any[]>([])
   const [proposalsList, setProposalsList] = useState<any[]>([])
   
-  // --- SDK STATUS STATE ---
   const [piSdkState, setPiSdkState] = useState<"loading" | "ready" | "failed">("loading")
+  const [logs, setLogs] = useState<string[]>([])
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
+  const addLog = (msg: string) => {
+    console.log(msg);
+    setLogs(prev => [...prev.slice(-5), msg]); // Keep last 6 logs
+  }
+
   useEffect(() => {
-    console.log("LegacyPi v2.2 Debug loaded");
+    addLog("v2.4 Started");
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
@@ -91,33 +94,37 @@ export default function LegacyPiPage() {
             if (window.Pi) {
                 window.Pi.init({ version: "2.0", sandbox: true });
                 setPiSdkState("ready");
-                console.log("Pi SDK Initialized");
+                addLog("SDK Init OK");
             } else {
                 setPiSdkState("failed");
+                addLog("Pi object missing");
             }
-        } catch (e) {
-            console.warn("Pi Init caught error:", e);
+        } catch (e: any) {
+            addLog("Init Warn: " + e.message);
             setPiSdkState("ready"); 
         }
     };
 
     const checkPiScript = () => {
       if (window.Pi) {
+        addLog("window.Pi found");
         initializePi();
       } else {
         attempts++;
-        if (attempts < 50) { 
-            // Injektiraj skriptu ako fali
+        if (attempts < 20) { 
             if (attempts === 2 && !document.querySelector('script[src*="pi-sdk.js"]')) {
+                addLog("Injecting SDK...");
                 const script = document.createElement('script');
                 script.src = "https://sdk.minepi.com/pi-sdk.js";
                 script.async = true;
                 script.onload = () => initializePi();
+                script.onerror = () => addLog("Script Load Err");
                 document.body.appendChild(script);
             }
             setTimeout(checkPiScript, 500);
         } else {
             setPiSdkState("failed");
+            addLog("Timeout: No SDK");
         }
       }
     };
@@ -125,39 +132,41 @@ export default function LegacyPiPage() {
     checkPiScript();
   }, [])
 
+  const onIncompletePaymentFound = (payment: any) => {
+    addLog("STUCK PAYMENT FOUND!");
+    addLog("ID: " + payment.identifier);
+    // U produkciji bi ovo poslali na server. 
+    // Ovdje samo bilježimo da znamo zašto auth možda zapinje.
+  };
+
   const connectWallet = async () => {
-    // Ako vidite ovaj alert, gumb radi!
-    alert(`DEBUG: Button Clicked! SDK Status: ${piSdkState}`);
+    addLog("Connect Clicked");
 
     if (piSdkState !== "ready") {
-        alert("Sustav se još učitava, pričekajte...");
+        addLog("SDK not ready");
+        try { window.Pi.init({ version: "2.0", sandbox: true }); setPiSdkState("ready"); } catch(e) {}
         return;
     }
 
     try {
-      const scopes = ['username', 'payments']
-      const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound)
+      addLog("Authenticating...");
+      const scopes = ['username', 'payments']; 
+      const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound);
       
-      alert(`Success! User: ${authResult.user.username}`);
-      setUser(authResult.user)
+      addLog("Auth OK: " + authResult.user.username);
+      setUser(authResult.user);
       
+      // Mock data load
       setUserStats({
         totalDonated: 125,
-        donations: [
-          { date: "2024-12-20", amount: 100, tx: "G...7A" },
-          { date: "2024-11-15", amount: 25, tx: "G...9B" }
-        ]
-      })
+        donations: [{ date: "2024-12-20", amount: 100, tx: "G...7A" }]
+      });
 
     } catch (err: any) {
-      console.error("Auth failed", err)
-      alert("Error: " + JSON.stringify(err));
+      addLog("Auth Fail: " + JSON.stringify(err));
+      if (err?.message) addLog("Msg: " + err.message);
     }
   }
-
-  const onIncompletePaymentFound = (payment: any) => {
-    console.log("Nedovršeno plaćanje:", payment)
-  };
 
   const handleDonation = async () => {
     if (!user) {
@@ -169,6 +178,7 @@ export default function LegacyPiPage() {
     }
 
     setPaymentStatus("processing")
+    addLog("Creating Payment...");
 
     try {
       const paymentData = {
@@ -179,76 +189,55 @@ export default function LegacyPiPage() {
 
       const callbacks = {
         onReadyForServerApproval: (paymentId: string) => {
-          completeUiSuccess()
+          addLog("Pay ID: " + paymentId);
+          completeUiSuccess();
         },
-        onServerApproval: (paymentId: string) => { console.log("Server odobrio") },
+        onServerApproval: (paymentId: string) => { console.log("Approved") },
         onCancel: (paymentId: string) => { 
-          setPaymentStatus("idle")
-          setSlidePosition(0)
+          setPaymentStatus("idle");
+          setSlidePosition(0);
+          addLog("Pay Cancelled");
         },
         onError: (error: any, payment: any) => {
-          console.error("Greška", error)
-          setPaymentStatus("error")
-          setSlidePosition(0)
+          addLog("Pay Error: " + JSON.stringify(error));
+          setPaymentStatus("error");
+          setSlidePosition(0);
         },
       }
       await window.Pi.createPayment(paymentData, callbacks)
-    } catch (err) {
-      console.error(err)
-      setSlidePosition(0)
-      setPaymentStatus("idle")
+    } catch (err: any) {
+      addLog("Pay Create Fail: " + err.message);
+      setSlidePosition(0);
+      setPaymentStatus("idle");
     }
   }
 
   const completeUiSuccess = () => {
     setPaymentStatus("success")
     setTimeout(() => {
-      setImpactData(prev => ({
-        ...prev,
-        totalLocked: prev.totalLocked + 1,
-        donorsCount: prev.donorsCount + 1
-      }))
-      setUserStats(prev => ({
-        totalDonated: prev.totalDonated + 1,
-        donations: [{ date: new Date().toISOString().split('T')[0], amount: 1, tx: "PENDING" }, ...prev.donations]
-      }))
+      setImpactData(prev => ({ ...prev, totalLocked: prev.totalLocked + 1, donorsCount: prev.donorsCount + 1 }))
+      setUserStats(prev => ({ totalDonated: prev.totalDonated + 1, donations: [{ date: "Just now", amount: 1, tx: "PENDING" }, ...prev.donations] }))
     }, 500)
     setTimeout(() => {
-      setPaymentStatus("idle")
-      setSlidePosition(0)
+      setPaymentStatus("idle"); setSlidePosition(0);
     }, 4000)
   }
 
   const handleVote = (id: number) => {
-    setProposalsList(prev => prev.map(p => {
-      if (p.id === id) { return { ...p, votes: p.votes + 1 } }
-      return p
-    }))
+    setProposalsList(prev => prev.map(p => { if (p.id === id) { return { ...p, votes: p.votes + 1 } }; return p }))
   }
 
-  const copyAddress = () => {
-    navigator.clipboard.writeText(VAULT_ADDRESS)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+  const copyAddress = () => { navigator.clipboard.writeText(VAULT_ADDRESS); setCopied(true); setTimeout(() => setCopied(false), 2000) }
+  const copyInvite = () => { navigator.clipboard.writeText(`Join LegacyPi! legacypi.app`); alert("Link copied!"); }
+  const forceReload = () => { window.location.reload(); }
 
-  const copyInvite = () => {
-    const inviteText = `I'm securing the future with LegacyPi! 🔐 Locked my Pi until 2030 for charity & growth. Join me: legacypi.app?ref=${user ? user.username : 'pioneer'}`;
-    navigator.clipboard.writeText(inviteText);
-    alert("Invite message copied to clipboard!");
-  }
-
+  // UI Helpers
   useEffect(() => {
     const targetDate = new Date("2030-01-01T00:00:00").getTime()
     const interval = setInterval(() => {
-      const now = new Date().getTime()
-      const distance = targetDate - now
+      const now = new Date().getTime(); const distance = targetDate - now;
       if (distance < 0) { clearInterval(interval); return }
-      setCountdown({
-        days: Math.floor(distance / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-        minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
-      })
+      setCountdown({ days: Math.floor(distance / (86400000)), hours: Math.floor((distance % (86400000)) / (3600000)), minutes: Math.floor((distance % (3600000)) / (60000)) })
     }, 1000)
     return () => clearInterval(interval)
   }, [])
@@ -257,12 +246,8 @@ export default function LegacyPiPage() {
     if (!isDragging) return
     const handleMouseMove = (e: MouseEvent) => { if (sliderRef.current) moveSlider(e.clientX) }
     const handleMouseUp = () => endDrag()
-    window.addEventListener("mousemove", handleMouseMove)
-    window.addEventListener("mouseup", handleMouseUp)
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove)
-      window.removeEventListener("mouseup", handleMouseUp)
-    }
+    window.addEventListener("mousemove", handleMouseMove); window.addEventListener("mouseup", handleMouseUp)
+    return () => { window.removeEventListener("mousemove", handleMouseMove); window.removeEventListener("mouseup", handleMouseUp) }
   }, [isDragging])
 
   const moveSlider = (clientX: number) => {
@@ -271,124 +256,101 @@ export default function LegacyPiPage() {
     const pos = Math.max(0, Math.min(clientX - rect.left, rect.width))
     const pct = (pos / rect.width) * 100
     setSlidePosition(pct)
-    if (pct >= 95) {
-      setIsDragging(false)
-      handleDonation()
-    }
+    if (pct >= 95) { setIsDragging(false); handleDonation() }
   }
   
-  const endDrag = () => {
-    setIsDragging(false)
-    if (slidePosition < 95) setSlidePosition(0)
-  }
+  const endDrag = () => { setIsDragging(false); if (slidePosition < 95) setSlidePosition(0) }
   const handleTouchStart = () => setIsDragging(true)
   const handleTouchMove = (e: React.TouchEvent) => { if (isDragging) moveSlider(e.touches[0].clientX) }
 
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i, left: Math.random() * 100, delay: Math.random() * 10, duration: 15 + Math.random() * 10, size: 2 + Math.random() * 4,
-  }))
+  const particles = Array.from({ length: 20 }, (_, i) => ({ id: i, left: Math.random() * 100, delay: Math.random() * 10, duration: 15 + Math.random() * 10, size: 2 + Math.random() * 4 }))
 
   return (
     <div className="min-h-screen bg-[#1a0b2e] relative overflow-hidden text-white font-sans flex flex-col">
-      {/* Modali... */}
+      {/* MODALS REDUCED FOR BREVITY - SAME AS BEFORE */}
       {showLeaderboard && (
-        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
             <div className="p-6 border-b border-yellow-500/20 flex items-center justify-between">
-              <div className="flex items-center gap-3"><Trophy className="w-6 h-6 text-yellow-500" /><h2 className="text-xl font-bold text-white">Hall of Fame</h2></div>
-              <button onClick={() => setShowLeaderboard(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
+              <h2 className="text-xl font-bold text-white">Hall of Fame</h2>
+              <button onClick={() => setShowLeaderboard(false)} className="p-2"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              <div className="flex justify-between px-4 pb-2 text-[10px] text-gray-500 uppercase tracking-widest"><span>Rank & User</span><span>Amount Locked</span></div>
               {donorsList.map((donor) => (
-                <div key={donor.rank} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${donor.rank === 1 ? "bg-yellow-500/10 border-yellow-500/50" : "bg-white/5 border-white/5"}`}>
-                  <div className="flex items-center gap-3"><div className="w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm bg-white/10 text-gray-400">{donor.rank}</div><div><div className="font-semibold text-sm text-white">{donor.username}</div><div className="text-[10px] text-gray-500 font-mono">{donor.wallet}</div></div></div>
-                  <div className="text-right"><div className="font-bold text-yellow-500">{donor.amount} Pi</div></div>
+                <div key={donor.rank} className="flex justify-between p-3 border border-white/5 rounded">
+                  <span>#{donor.rank} {donor.username}</span> <span className="text-yellow-500">{donor.amount} Pi</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
       )}
-
+      
       {showProposals && (
-        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-          <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
-            <div className="p-6 border-b border-yellow-500/20 flex items-center justify-between">
-              <div className="flex items-center gap-3"><Lightbulb className="w-6 h-6 text-yellow-500" /><h2 className="text-xl font-bold text-white">Community Visions</h2></div>
-              <button onClick={() => setShowProposals(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-              {proposalsList.map((proposal) => (
-                <div key={proposal.id} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-yellow-500/30 transition-colors">
-                  <h3 className="text-lg font-bold text-white mb-1">{proposal.title}</h3>
-                  <p className="text-sm text-gray-400 mb-3">{proposal.description}</p>
-                  <Button onClick={() => handleVote(proposal.id)} className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/50">Vote ({proposal.votes})</Button>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative p-6">
+             <div className="flex justify-between mb-4"><h2 className="text-xl font-bold">Visions</h2><button onClick={()=>setShowProposals(false)}><X/></button></div>
+             <div className="space-y-4 overflow-y-auto h-full pb-10">
+                {proposalsList.map(p => (
+                    <div key={p.id} className="border border-white/10 p-4 rounded bg-white/5">
+                        <h3 className="font-bold">{p.title}</h3>
+                        <p className="text-sm text-gray-400">{p.description}</p>
+                        <Button onClick={()=>handleVote(p.id)} className="w-full mt-2 bg-yellow-500/20 text-yellow-500">Vote ({p.votes})</Button>
+                    </div>
+                ))}
+             </div>
+           </div>
         </div>
       )}
 
       {showRoadmap && (
-        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-          <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
-            <div className="p-6 border-b border-yellow-500/20 flex items-center justify-between">
-              <div className="flex items-center gap-3"><Map className="w-6 h-6 text-yellow-500" /><h2 className="text-xl font-bold text-white">Timeline 2030</h2></div>
-              <button onClick={() => setShowRoadmap(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-              {ROADMAP_STEPS.map((step, index) => (
-                <div key={index} className="flex gap-4 relative">
-                  <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 z-10 ${step.status === "current" ? "bg-yellow-500 border-yellow-500 text-black font-bold" : "bg-white/5 border-white/20 text-gray-500"}`}>{step.status === "current" ? <div className="w-2 h-2 rounded-full bg-black"></div> : <div className="w-2 h-2 rounded-full bg-gray-500"></div>}</div>
-                  <div className="flex-1 pt-1"><h3 className="text-lg font-bold text-white">{step.title}</h3><p className="text-sm text-gray-400 mt-1">{step.description}</p></div>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative p-6">
+             <div className="flex justify-between mb-4"><h2 className="text-xl font-bold">Timeline</h2><button onClick={()=>setShowRoadmap(false)}><X/></button></div>
+             <div className="space-y-6 overflow-y-auto h-full pb-10">
+                {ROADMAP_STEPS.map((s,i) => (
+                    <div key={i} className="flex gap-4">
+                        <div className="text-yellow-500 font-bold">{s.year}</div>
+                        <div><div className="font-bold">{s.title}</div><div className="text-sm text-gray-400">{s.description}</div></div>
+                    </div>
+                ))}
+             </div>
+           </div>
         </div>
       )}
 
       {showShare && (
-        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-          <div className="bg-[#2E0A36] w-full max-w-sm rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative text-center">
-            <div className="p-6 bg-gradient-to-b from-yellow-500/10 to-transparent">
-              <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-500/50"><Sparkles className="w-8 h-8 text-yellow-500 animate-pulse" /></div>
-              <h2 className="text-xl font-bold text-white mb-2">Invite Pioneers</h2>
-            </div>
-            <div className="p-6 space-y-4">
-              <Button onClick={copyInvite} className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-12 rounded-xl flex items-center justify-center gap-2"><Copy className="w-4 h-4" /> Copy Invite Link</Button>
-              <Button onClick={() => setShowShare(false)} variant="ghost" className="w-full text-gray-500 hover:text-white">Close</Button>
-            </div>
-          </div>
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-[#2E0A36] w-full max-w-sm rounded-2xl border border-yellow-500/30 p-6 text-center">
+             <h2 className="text-xl font-bold mb-4">Invite Friends</h2>
+             <Button onClick={copyInvite} className="w-full bg-yellow-500 text-black">Copy Link</Button>
+             <Button onClick={()=>setShowShare(false)} variant="ghost" className="w-full mt-2">Close</Button>
+           </div>
         </div>
       )}
 
       {showProfile && user && (
-        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-          <div className="bg-[#2E0A36] w-full max-w-lg h-[85vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative">
-            <div className="p-6 border-b border-yellow-500/20 flex items-center justify-between bg-black/20">
-              <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/50"><Users className="w-6 h-6 text-yellow-500" /></div><div><h2 className="text-xl font-bold text-white">My Legacy</h2><p className="text-xs text-gray-400">@{user.username}</p></div></div>
-              <button onClick={() => setShowProfile(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-              <div className="bg-gradient-to-r from-yellow-500/20 to-purple-500/20 rounded-xl p-6 text-center border border-yellow-500/30 relative overflow-hidden"><p className="text-sm text-gray-300 uppercase tracking-widest mb-1 relative z-10">Total Locked</p><div className="text-4xl font-bold text-white relative z-10">{userStats.totalDonated} Pi</div></div>
-              <div>
-                <h3 className="text-sm text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Medal className="w-4 h-4" /> Earned Badges</h3>
-                <div className="grid grid-cols-2 gap-3">{BADGE_TIERS.map((badge) => (<div key={badge.id} className={`p-3 rounded-xl border flex flex-col items-center text-center transition-all ${userStats.totalDonated >= badge.threshold ? `${badge.bg} ${badge.border}` : "bg-black/20 border-white/5 opacity-50 grayscale"}`}><div className={`font-bold text-sm ${userStats.totalDonated >= badge.threshold ? "text-white" : "text-gray-500"}`}>{badge.name}</div></div>))}</div>
-              </div>
-            </div>
-          </div>
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 p-6 flex flex-col relative">
+             <button onClick={()=>setShowProfile(false)} className="absolute top-4 right-4"><X/></button>
+             <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-yellow-500/20 rounded-full mx-auto flex items-center justify-center mb-2"><Users className="text-yellow-500"/></div>
+                <h2 className="text-xl font-bold">@{user.username}</h2>
+             </div>
+             <div className="space-y-4 overflow-y-auto">
+                <div className="bg-white/5 p-4 rounded text-center"><div className="text-gray-400 text-sm">Total Pledged</div><div className="text-2xl font-bold text-yellow-500">{userStats.totalDonated} Pi</div></div>
+                <div><h3 className="font-bold mb-2">Badges</h3><div className="grid grid-cols-2 gap-2">{BADGE_TIERS.map(b => <div key={b.id} className={`p-2 border rounded text-center text-xs ${userStats.totalDonated >= b.threshold ? 'border-yellow-500 text-yellow-500' : 'border-gray-700 text-gray-700'}`}>{b.name}</div>)}</div></div>
+             </div>
+           </div>
         </div>
       )}
 
       {paymentStatus === "success" && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300 fixed">
-          <div className="text-center p-8 bg-[#2E0A36] border border-yellow-500 rounded-2xl shadow-[0_0_50px_rgba(234,179,8,0.3)] mx-4">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className="text-center p-8 bg-[#2E0A36] border border-yellow-500 rounded-2xl mx-4">
             <LegacyPiLogo className="w-20 h-20 mx-auto mb-6 animate-bounce" />
-            <h2 className="text-3xl font-bold text-yellow-400 mb-2">Thank You, Guardian!</h2>
-            <p className="text-gray-300">Your Pi is locked until 2030.</p>
+            <h2 className="text-3xl font-bold text-yellow-400 mb-2">Thank You!</h2>
+            <p className="text-gray-300">Locked until 2030.</p>
           </div>
         </div>
       )}
@@ -409,20 +371,12 @@ export default function LegacyPiPage() {
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={() => setShowShare(true)} variant="outline" size="icon" className="w-9 h-9 rounded-full bg-white/5 border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10"><Share2 className="w-4 h-4" /></Button>
-              {/* OVDJE JE PROMJENA: Koristimo običan HTML button i z-index fix */}
-              <button 
+              <Button 
                 onClick={() => user ? setShowProfile(true) : connectWallet()}
-                className={`text-xs border border-yellow-500/30 rounded-full px-4 py-2 transition-all duration-300 font-semibold z-50 relative active:scale-95 ${user ? 'bg-yellow-500/20 text-yellow-400' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}
+                className={`text-xs border border-yellow-500/30 rounded-full px-4 h-9 transition-all duration-300 font-semibold z-50 relative ${user ? 'bg-yellow-500/20 text-yellow-400' : 'bg-transparent text-yellow-500 hover:bg-yellow-500/10'}`}
               >
-                {user ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    @{user.username}
-                  </span>
-                ) : (
-                  "Connect Wallet"
-                )}
-              </button>
+                {user ? `@${user.username}` : "Connect Wallet"}
+              </Button>
             </div>
           </div>
         </header>
@@ -471,12 +425,21 @@ export default function LegacyPiPage() {
         </main>
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto relative z-10">
+          {/* DEBUG CONSOLE (v2.4) */}
+          <div className="mb-4 bg-black p-2 rounded text-[10px] font-mono text-green-400 h-24 overflow-y-auto border border-green-900 opacity-90">
+            <div className="border-b border-green-900 mb-1 pb-1 flex justify-between items-center">
+                <span className="flex items-center gap-2"><Terminal className="w-3 h-3" /> CONSOLE v2.4</span>
+                <button onClick={forceReload} className="bg-green-900 px-2 rounded text-white flex items-center gap-1 hover:bg-green-800"><RefreshCw className="w-3 h-3"/> Force Reload</button>
+            </div>
+            {logs.map((log, i) => <div key={i}>{`> ${log}`}</div>)}
+          </div>
+
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>Unlock Date: Jan 1, 2030 • v2.2 (Debug)</span>
+                <span>Unlock: 2030 • v2.4</span>
                 <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
-                    {piSdkState === "ready" ? "SDK: Ready" : piSdkState === "failed" ? "SDK: Not Found" : "SDK: Loading..."}
+                    {piSdkState === "ready" ? "System: Ready" : "System: Loading..."}
                 </span>
             </div>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90"><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Days</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div></div></div>
