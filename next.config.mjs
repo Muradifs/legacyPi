@@ -1,14 +1,11 @@
+// next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  images: {
-    unoptimized: true,
-  },
-}
+  // Ostale opcije koje imaš...
+  // IZBRIŠI OVO:
+  // eslint: {
+  //   ignoreDuringBuilds: true,
+  // },
+};
 
-export default nextConfig
+export default nextConfig;
