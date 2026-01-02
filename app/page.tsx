@@ -4,7 +4,7 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Users, Shield, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles, Activity, Terminal, RefreshCw, ChevronRight } from "lucide-react"
+import { Heart, Users, Shield, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles, Activity, Terminal, RefreshCw, ChevronRight, Copy, Check } from "lucide-react"
 
 // Tvoja javna adresa trezora
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
@@ -33,7 +33,7 @@ const BADGE_TIERS = [
 ];
 
 const ROADMAP_STEPS = [
-  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin.", status: "current" },
+  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin. Smart Contract Deployment.", status: "current" },
   { year: "2026", title: "First Audit", description: "Public review of the Vault holdings.", status: "upcoming" },
   { year: "2028", title: "Test Vote", description: "Trial run of the DAO voting system.", status: "upcoming" },
   { year: "2030", title: "THE UNLOCK", description: "Consensus Day. Funds released.", status: "locked" }
