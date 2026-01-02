@@ -4,7 +4,7 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles } from "lucide-react"
+import { Heart, Users, Shield, TrendingUp, ChevronRight, Wallet, Copy, Check, Trophy, X, Lightbulb, ThumbsUp, Medal, Star, History, Lock, Map, Share2, Sparkles, Activity } from "lucide-react"
 
 // Tvoja javna adresa trezora
 const VAULT_ADDRESS = "GAGQPTC6QEFQRB6ZNHUOLLO6HCFDPVVA63IDCQ62GCUG6GFXKALKXGFF"
@@ -75,61 +75,52 @@ export default function LegacyPiPage() {
   
   const [donorsList, setDonorsList] = useState<any[]>([])
   const [proposalsList, setProposalsList] = useState<any[]>([])
-  const [piReady, setPiReady] = useState(false) 
+  
+  // --- SDK STATUS STATE ---
+  const [piSdkState, setPiSdkState] = useState<"loading" | "ready" | "failed">("loading")
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- POPRAVLJENA I ROBUSTNIJA LOGIKA UČITAVANJA PI SDK-a ---
+  // --- NOVA POBOLJŠANA LOGIKA UČITAVANJA SDK-a ---
   useEffect(() => {
-    console.log("LegacyPi v1.9 loaded");
+    console.log("LegacyPi v2.0 loaded");
     setDonorsList(generateMockDonors())
     setProposalsList(generateMockProposals())
 
-    let attempts = 0;
-    
-    // Pomoćna funkcija za sigurnu inicijalizaciju
-    const initializePi = () => {
-        try {
-            window.Pi.init({ version: "2.0", sandbox: true });
-            setPiReady(true);
-            console.log("Pi SDK Initialized Successfully");
-        } catch (e) {
-            console.warn("Pi SDK Init Warning:", e);
-            // Pretpostavljamo da je spreman čak i ako init baci grešku (npr. već je inicijaliziran)
-            setPiReady(true);
-        }
-    };
-
-    const checkPiScript = () => {
-      if (window.Pi) {
-        initializePi();
-      } else {
-        attempts++;
-        // Povećano vrijeme čekanja: 50 pokušaja * 500ms = 25 sekundi
-        if (attempts < 50) { 
-            // Fallback: Ako nakon 2 sekunde (4 pokušaja) nema Pi objekta, ručno ubacujemo skriptu
-            // Ovo rješava probleme gdje se vanjska skripta nije učitala
-            if (attempts === 4 && !document.querySelector('script[src*="pi-sdk.js"]')) {
-                console.log("Auto-injecting Pi SDK script...");
-                const script = document.createElement('script');
-                script.src = "https://sdk.minepi.com/pi-sdk.js";
-                script.async = true;
-                script.onload = () => { console.log("Manual script injection successful"); };
-                document.body.appendChild(script);
-            }
-            setTimeout(checkPiScript, 500);
+    const initPi = () => {
+      try {
+        if (window.Pi) {
+          window.Pi.init({ version: "2.0", sandbox: true });
+          setPiSdkState("ready");
+          console.log("Pi SDK Initialized Successfully");
         } else {
-            console.error("Pi SDK not found after timeout.");
+          throw new Error("Pi object not found");
         }
+      } catch (e) {
+        console.warn("Pi SDK Init Warning:", e);
+        // Ako je init već pozvan, svejedno smatramo da je spreman
+        if (window.Pi) setPiSdkState("ready");
+        else setPiSdkState("failed");
       }
     };
 
-    checkPiScript();
+    // 1. Provjeri je li već učitan
+    if (window.Pi) {
+      initPi();
+    } else {
+      // 2. Ako nije, učitaj skriptu ručno
+      const script = document.createElement('script');
+      script.src = "https://sdk.minepi.com/pi-sdk.js";
+      script.async = true;
+      script.onload = () => initPi();
+      script.onerror = () => setPiSdkState("failed");
+      document.body.appendChild(script);
+    }
   }, [])
 
   const connectWallet = async () => {
-    if (!window.Pi) {
-        alert("Povezivanje s Pi Browserom u tijeku... Molimo pričekajte trenutak i pokušajte ponovno.");
+    if (piSdkState !== "ready") {
+        alert("Pi sustav se još učitava. Pričekajte trenutak.");
         return;
     }
 
@@ -148,7 +139,7 @@ export default function LegacyPiPage() {
 
     } catch (err) {
       console.error("Authentication failed", err)
-      alert("Autentifikacija nije uspjela. Provjerite jeste li u Pi Browseru.")
+      alert("Povezivanje nije uspjelo. Provjerite jeste li u Pi Browseru.")
     }
   }
 
@@ -159,7 +150,7 @@ export default function LegacyPiPage() {
   const handleDonation = async () => {
     if (!user) {
       await connectWallet()
-      if (!window.Pi || !user) {
+      if (!user) {
         setSlidePosition(0)
         return 
       }
@@ -455,7 +446,13 @@ export default function LegacyPiPage() {
 
         <footer className="px-4 py-8 border-t border-white/5 bg-black/20 mt-auto">
           <div className="text-center space-y-4">
-            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Unlock Date: Jan 1, 2030 • v1.9</p>
+            <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
+                <span>Unlock Date: Jan 1, 2030 • v2.0</span>
+                <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-yellow-500"}`}>
+                    <Activity className="w-3 h-3" />
+                    {piSdkState === "ready" ? "System: Ready" : "System: Loading..."}
+                </span>
+            </div>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90"><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Days</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div></div></div>
             <div className="mt-8 flex items-center justify-center gap-6 text-[10px] text-gray-500 uppercase tracking-widest pt-4 border-t border-white/5"><a href="/terms-of-service" className="hover:text-yellow-500 transition-colors">Terms of Service</a><a href="/privacy-policy" className="hover:text-yellow-500 transition-colors">Privacy Policy</a></div>
           </div>
