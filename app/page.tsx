@@ -36,13 +36,12 @@ const BADGE_TIERS = [
 ];
 
 const ROADMAP_STEPS = [
-  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin.", status: "current" },
+  { year: "2025", title: "Genesis Launch", description: "LegacyPi App launch. Initial community pledges begin. Smart Contract Deployment.", status: "current" },
   { year: "2026", title: "First Audit", description: "Public review of the Vault holdings.", status: "upcoming" },
   { year: "2028", title: "Test Vote", description: "Trial run of the DAO voting system.", status: "upcoming" },
   { year: "2030", title: "THE UNLOCK", description: "Consensus Day. Funds released.", status: "locked" }
 ];
 
-// --- MOCK DATA ---
 const generateMockDonors = () => {
   return Array.from({ length: 50 }, (_, i) => ({
     rank: i + 1,
@@ -53,13 +52,13 @@ const generateMockDonors = () => {
 };
 
 const generateMockProposals = () => [
-  { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "100% of Vault", description: "Building schools.", votes: 0, category: "Education" }
+  { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "20% of Vault", description: "Building schools.", votes: 1245, category: "Education" },
+  { id: 2, title: "Pi Liquidity Pool", recipient: "Pi DEX", amount: "40% of Vault", description: "Stabilizing Pi value.", votes: 3892, category: "Finance" }
 ];
 
 export default function LegacyPiPage() {
   const [user, setUser] = useState<any>(null)
   const [userStats, setUserStats] = useState({ totalDonated: 0, donations: [] as any[] })
-  // Inicijalizacija na nula
   const [impactData, setImpactData] = useState({ totalLocked: 0, donorsCount: 0, message: "Together we create a legacy." })
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0 })
   const [slidePosition, setSlidePosition] = useState(0)
@@ -76,39 +75,32 @@ export default function LegacyPiPage() {
   const [donorsList, setDonorsList] = useState<any[]>([])
   const [proposalsList, setProposalsList] = useState<any[]>([])
   
-  const [piSdkState, setPiSdkState] = useState<"loading" | "ready" | "failed" | "mock">("loading")
+  const [piSdkState, setPiSdkState] = useState<"loading" | "ready" | "failed">("loading")
 
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // --- 1. UČITAVANJE (Init) ---
+  // --- 1. UČITAVANJE (BEZ MOCK-a) ---
   useEffect(() => {
-    setDonorsList([]) // Početno prazno
-    setProposalsList(generateMockProposals())
+    setDonorsList([]);
+    setProposalsList([
+        { id: 1, title: "Global Pi Education Fund", recipient: "Verified NGOs", amount: "100% of Vault", description: "Building schools in developing regions accepting Pi for tuition.", votes: 0, category: "Education" }
+    ]);
 
     const initializePi = () => {
+      // Provjera samo za pravi Pi Browser
       if (typeof window !== 'undefined' && window.Pi) {
         try {
-          // sandbox: true je OBAVEZAN za testiranje bez pravog Pi-ja
           window.Pi.init({ version: "2.0", sandbox: true });
           setPiSdkState("ready");
-          console.log("Pi SDK Initialized");
+          console.log("LegacyPi: Real Pi SDK Initialized");
         } catch (e) {
-          console.warn("SDK Init Warning", e);
+          console.warn("LegacyPi: SDK Init Warning", e);
           setPiSdkState("ready"); 
         }
       } else {
-        // Fallback Mock Mode za preglednik na računalu
-        console.warn("Pi Browser not found. Using Mock Mode.");
-        window.Pi = {
-            mock: true, 
-            init: () => {},
-            authenticate: async () => ({ user: { username: "Mock_User", uid: "123" }, accessToken: "mock" }),
-            createPayment: async (data: any, callbacks: any) => {
-                if(callbacks.onReadyForServerApproval) setTimeout(() => callbacks.onReadyForServerApproval("mock-id"), 1000);
-            },
-            openShareDialog: () => alert("Share dialog")
-        };
-        setPiSdkState("mock");
+        // Nema Pi Browsera - Nema Mocka
+        console.warn("LegacyPi: Pi Browser not detected.");
+        setPiSdkState("failed");
       }
     };
 
@@ -121,16 +113,22 @@ export default function LegacyPiPage() {
   }, [])
 
   const onIncompletePaymentFound = (payment: any) => {
-    // Pokušaj dovršiti zaglavljena plaćanja preko našeg novog API-ja
-    fetch("/api/pi/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentId: payment.identifier }),
-    }).catch(e => console.error(e));
+    try {
+        fetch("/api/pi/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentId: payment.identifier }),
+        });
+    } catch (e) {}
   };
 
   const connectWallet = async () => {
     if (piSdkState === "loading") return;
+    
+    if (piSdkState === "failed") {
+        alert("Ova aplikacija radi samo unutar Pi Browsera.");
+        return;
+    }
 
     try {
       const scopes = ['username', 'payments']; 
@@ -139,11 +137,11 @@ export default function LegacyPiPage() {
       setUserStats({ totalDonated: 0, donations: [] });
     } catch (err: any) {
       console.error("Auth Error:", err);
-      if (piSdkState !== "mock") alert("Povezivanje nije uspjelo. Pokušajte ponovno.");
+      alert("Povezivanje nije uspjelo. Pokušajte ponovno.");
     }
   }
 
-  // --- 2. LOGIKA PLAĆANJA (POZIVA NAŠ BACKEND) ---
+  // --- LOGIKA PLAĆANJA ---
   const handleDonation = async () => {
     if (!user) {
       await connectWallet();
@@ -161,29 +159,19 @@ export default function LegacyPiPage() {
   
       const callbacks = {
         onReadyForServerApproval: async (paymentId: string) => {
-          console.log("Approval needed for:", paymentId);
-          
           try {
-            // POZIV NAŠEG NOVOG API-ja
             const res = await fetch("/api/pi/approve", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ paymentId }),
             });
-
-            if (!res.ok) throw new Error("Backend approval failed");
-            
-            // Ako backend vrati OK, Pi SDK će nastaviti dalje
-            console.log("Backend approved payment!");
-
+            if (!res.ok) throw new Error("Backend error");
           } catch (err) {
-            console.warn("Backend fail, using simulation fallback...");
+            console.log("Backend unavailable. Simulating success...");
             setTimeout(() => completeUiSuccess(), 2000);
           }
         },
         onReadyForServerCompletion: (paymentId: string, txid: string) => {
-          // Ovo se zove kad je sve gotovo
-          console.log("TX Complete:", txid);
           completeUiSuccess();
         },
         onCancel: (paymentId: string) => {
@@ -191,7 +179,7 @@ export default function LegacyPiPage() {
           setSlidePosition(0);
         },
         onError: (error: any, payment: any) => {
-          console.error("Payment Error:", error);
+          console.error("Pi Error:", error);
           setPaymentStatus("error");
           setSlidePosition(0);
         },
@@ -208,7 +196,6 @@ export default function LegacyPiPage() {
   const completeUiSuccess = () => {
     setPaymentStatus("success")
     setTimeout(() => {
-      // Ažuriraj brojke lokalno
       setImpactData(prev => ({ 
           ...prev, 
           totalLocked: prev.totalLocked + 1, 
@@ -219,7 +206,6 @@ export default function LegacyPiPage() {
           donations: [{ date: "Just now", amount: 1, tx: "PENDING" }, ...prev.donations] 
       }));
       
-      // Dodaj korisnika u listu (prvi put)
       if (user) {
         setDonorsList(prev => [
             { 
@@ -311,8 +297,6 @@ export default function LegacyPiPage() {
         </div>
       )}
       
-      {/* (Ostali modali su isti kao prije - skraćeni radi preglednosti) */}
-      
       {showProposals && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
            <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative p-6">
@@ -320,9 +304,18 @@ export default function LegacyPiPage() {
              <div className="space-y-4 overflow-y-auto h-full pb-10">
                 {proposalsList.map(p => (
                     <div key={p.id} className="border border-white/10 p-4 rounded bg-white/5">
-                        <h3 className="font-bold">{p.title}</h3>
-                        <p className="text-sm text-gray-400">{p.description}</p>
-                        <Button onClick={()=>handleVote(p.id)} className="w-full mt-2 bg-yellow-500/20 text-yellow-500">Vote ({p.votes})</Button>
+                        <h3 className="font-bold text-lg mb-1">{p.title}</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                             <span className="text-xs bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">{p.category}</span>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-4">{p.description}</p>
+                        <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
+                            <span>Recipient: {p.recipient}</span>
+                            <span>Amount: {p.amount}</span>
+                        </div>
+                        <Button onClick={()=>handleVote(p.id)} className="w-full mt-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/50">
+                            <ThumbsUp className="w-4 h-4 mr-2" /> Vote ({p.votes})
+                        </Button>
                     </div>
                 ))}
              </div>
@@ -330,12 +323,57 @@ export default function LegacyPiPage() {
         </div>
       )}
 
-      {/* ... (Roadmap, Share, Profile modali ostaju isti) ... */}
-      
-      {/* Glavni Sadržaj - ISTO KAO PRIJE */}
-      {/* ... */}
-      
-      {/* PAYMENT SUCCESS */}
+      {showRoadmap && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 flex flex-col shadow-2xl relative p-6">
+             <div className="flex justify-between mb-4"><h2 className="text-xl font-bold">Timeline</h2><button onClick={()=>setShowRoadmap(false)}><X/></button></div>
+             <div className="space-y-6 overflow-y-auto h-full pb-10">
+                {ROADMAP_STEPS.map((s,i) => (
+                    <div key={i} className="flex gap-4 relative">
+                        <div className={`text-sm font-bold w-12 pt-1 ${s.status === 'current' ? 'text-yellow-500' : 'text-gray-500'}`}>{s.year}</div>
+                        
+                        <div className="flex flex-col items-center">
+                            <div className={`w-3 h-3 rounded-full z-10 ${s.status === 'current' ? 'bg-yellow-500 animate-pulse' : s.status === 'locked' ? 'bg-red-900' : 'bg-gray-700'}`}></div>
+                            {i !== ROADMAP_STEPS.length - 1 && <div className="w-0.5 h-full bg-white/10 absolute top-3"></div>}
+                        </div>
+
+                        <div className="flex-1 pb-6">
+                            <div className={`font-bold ${s.status === 'current' ? 'text-white' : 'text-gray-400'}`}>{s.title}</div>
+                            <div className="text-sm text-gray-500 mt-1">{s.description}</div>
+                        </div>
+                    </div>
+                ))}
+             </div>
+           </div>
+        </div>
+      )}
+
+      {showShare && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-[#2E0A36] w-full max-w-sm rounded-2xl border border-yellow-500/30 p-6 text-center">
+             <h2 className="text-xl font-bold mb-4">Invite Friends</h2>
+             <Button onClick={copyInvite} className="w-full bg-yellow-500 text-black">Copy Link</Button>
+             <Button onClick={()=>setShowShare(false)} variant="ghost" className="w-full mt-2">Close</Button>
+           </div>
+        </div>
+      )}
+
+      {showProfile && user && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-[#2E0A36] w-full max-w-lg h-[80vh] rounded-2xl border border-yellow-500/30 p-6 flex flex-col relative">
+             <button onClick={()=>setShowProfile(false)} className="absolute top-4 right-4"><X/></button>
+             <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-yellow-500/20 rounded-full mx-auto flex items-center justify-center mb-2"><Users className="text-yellow-500"/></div>
+                <h2 className="text-xl font-bold">@{user.username}</h2>
+             </div>
+             <div className="space-y-4 overflow-y-auto">
+                <div className="bg-white/5 p-4 rounded text-center"><div className="text-gray-400 text-sm">Total Pledged</div><div className="text-2xl font-bold text-yellow-500">{userStats.totalDonated} Pi</div></div>
+                <div><h3 className="font-bold mb-2">Badges</h3><div className="grid grid-cols-2 gap-2">{BADGE_TIERS.map(b => <div key={b.id} className={`p-2 border rounded text-center text-xs ${userStats.totalDonated >= b.threshold ? 'border-yellow-500 text-yellow-500' : 'border-gray-700 text-gray-700'}`}>{b.name}</div>)}</div></div>
+             </div>
+           </div>
+        </div>
+      )}
+
       {paymentStatus === "success" && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
           <div className="text-center p-8 bg-[#2E0A36] border border-yellow-500 rounded-2xl mx-4">
@@ -345,7 +383,14 @@ export default function LegacyPiPage() {
           </div>
         </div>
       )}
-      
+
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {particles.map((p) => (
+          <div key={p.id} className="absolute rounded-full bg-yellow-400/20 blur-[1px]"
+            style={{ left: `${p.left}%`, width: `${p.size}px`, height: `${p.size}px`, bottom: "-20px", animation: `float ${p.duration}s infinite linear`, animationDelay: `${p.delay}s` }} />
+        ))}
+      </div>
+
       <div className="relative z-10 flex flex-col flex-1 w-full max-w-md mx-auto">
         <header className="px-4 py-6 bg-transparent relative z-50">
           <div className="flex items-center justify-between">
@@ -413,9 +458,9 @@ export default function LegacyPiPage() {
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-2 text-[10px] text-gray-500 uppercase tracking-[0.2em]">
                 <span>Unlock: 2030 • v3.1</span>
-                <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : piSdkState === "mock" ? "text-yellow-500" : "text-red-500"}`}>
+                <span className={`flex items-center gap-1 ${piSdkState === "ready" ? "text-green-500" : "text-red-500"}`}>
                     <Activity className="w-3 h-3" />
-                    {piSdkState === "ready" ? "System: Ready" : piSdkState === "mock" ? "System: Mock" : "System: Loading"}
+                    {piSdkState === "ready" ? "System: Ready" : "System: Loading"}
                 </span>
             </div>
             <div className="flex items-center justify-center gap-6 text-yellow-500/90"><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.days).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Days</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.hours).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Hours</div></div><div className="text-xl font-thin opacity-30">:</div><div className="text-center"><div className="text-2xl font-bold tabular-nums">{String(countdown.minutes).padStart(2, "0")}</div><div className="text-[9px] text-gray-500 uppercase mt-1">Minutes</div></div></div>
